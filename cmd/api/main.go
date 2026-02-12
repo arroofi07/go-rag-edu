@@ -11,9 +11,21 @@ import (
 	"rag-api/pkg/config"
 	"rag-api/pkg/database"
 
+	_ "rag-api/docs"
+
 	"github.com/gofiber/fiber/v2"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
+// @title           RAG API
+// @version         1.0
+// @description     API documentation for the RAG (Retrieval-Augmented Generation) service
+// @host            localhost:8080
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter your bearer token in the format: Bearer {token}
 func main() {
 	cfg := config.Load()
 
@@ -37,6 +49,9 @@ func main() {
 	// initialize fiber app
 	app := fiber.New()
 
+	// Swagger route
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
+
 	// Public Routes
 	api := app.Group("/api")
 	api.Post("/auth/register", authHandler.Register)
@@ -55,6 +70,7 @@ func main() {
 
 	// Start server
 	log.Printf("🚀 Server starting on port %d", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)
 	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

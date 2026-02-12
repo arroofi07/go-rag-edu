@@ -16,7 +16,17 @@ func NewAuthHandler(authUsecase *auth.AuthUsecase) *AuthHandler {
 	return &AuthHandler{authUsecase: authUsecase}
 }
 
-// handler register start
+// Register godoc
+// @Summary      Register a new user
+// @Description  Create a new user account with email, password, name, major, and role
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.RegisterRequest        true  "Register Request"
+// @Success      200      {object}  dto.RegisterSuccessResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/auth/register [post]
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -45,9 +55,17 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}})
 }
 
-// handler register end
-
-// handler login start
+// Login godoc
+// @Summary      Login user
+// @Description  Authenticate a user with email and password, returns a JWT token
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request  body      dto.LoginRequest         true  "Login Request"
+// @Success      200      {object}  dto.LoginSuccessResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      401      {object}  dto.ErrorResponse
+// @Router       /api/auth/login [post]
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -72,5 +90,3 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Role:  string(user.Role),
 	}})
 }
-
-// handler login end

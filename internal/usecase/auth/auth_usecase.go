@@ -1,8 +1,8 @@
 package auth
 
-
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -12,9 +12,6 @@ import (
 	"rag-api/pkg/jwt"
 	"rag-api/pkg/password"
 )
-
-
-
 
 type AuthUsecase struct {
 	userRepo  repository.UserRepository
@@ -34,7 +31,6 @@ func NewAuthUsecase(
 	}
 }
 
-
 // register user
 func (uc *AuthUsecase) Register(
 	ctx context.Context,
@@ -49,10 +45,10 @@ func (uc *AuthUsecase) Register(
 
 	// Check if email already exists
 	existing, err := uc.userRepo.FindByEmail(ctx, email)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	if existing != nil {
+	if existing != nil && err == nil {
 		return nil, errors.New("email already registered")
 	}
 
@@ -78,8 +74,6 @@ func (uc *AuthUsecase) Register(
 	return user, nil
 }
 
-
-
 // login user
 func (uc *AuthUsecase) Login(
 	ctx context.Context,
@@ -94,6 +88,9 @@ func (uc *AuthUsecase) Login(
 	// Find user
 	user, err := uc.userRepo.FindByEmail(ctx, email)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil, errors.New("invalid credentials")
+		}
 		return "", nil, err
 	}
 	if user == nil {
