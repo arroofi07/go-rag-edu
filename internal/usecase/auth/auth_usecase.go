@@ -1,0 +1,123 @@
+package auth
+
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"rag-api/internal/domain/entity"
+	"rag-api/internal/domain/repository"
+	"rag-api/pkg/jwt"
+	"rag-api/pkg/password"
+)
+
+
+
+
+type AuthUsecase struct {
+	userRepo  repository.UserRepository
+	jwtSecret string
+	jwtExpiry time.Duration
+}
+
+func NewAuthUsecase(
+	userRepo repository.UserRepository,
+	jwtSecret string,
+	jwtExpiry time.Duration,
+) *AuthUsecase {
+	return &AuthUsecase{
+		userRepo:  userRepo,
+		jwtSecret: jwtSecret,
+		jwtExpiry: jwtExpiry,
+	}
+}
+
+
+// register user
+func (uc *AuthUsecase) Register(
+	ctx context.Context,
+	email, pass, name, major string,
+	role entity.UserRole,
+) (*entity.User, error) {
+	// Validate input
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" || pass == "" || name == "" || major == "" {
+		return nil, errors.New("all fields are required")
+	}
+
+	// Check if email already exists
+	existing, err := uc.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, errors.New("email already registered")
+	}
+
+	// Hash password
+	hashedPassword, err := password.HashPassword(pass)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create user
+	user := &entity.User{
+		Email:    email,
+		Password: hashedPassword,
+		Name:     name,
+		Major:    major,
+		Role:     role,
+	}
+
+	if err := uc.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+
+
+// login user
+func (uc *AuthUsecase) Login(
+	ctx context.Context,
+	email, pass string,
+) (string, *entity.User, error) {
+	// Validate input
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" || pass == "" {
+		return "", nil, errors.New("email and password are required")
+	}
+
+	// Find user
+	user, err := uc.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return "", nil, err
+	}
+	if user == nil {
+		return "", nil, errors.New("invalid credentials")
+	}
+
+	// Verify password
+	if err := password.ComparePassword(user.Password, pass); err != nil {
+		return "", nil, errors.New("invalid credentials")
+	}
+
+	// Generate JWT token
+	token, err := jwt.GenerateToken(
+		user.ID,
+		user.Email,
+		string(user.Role),
+		user.Major,
+		uc.jwtSecret,
+		uc.jwtExpiry,
+	)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return token, user, nil
+
+}
