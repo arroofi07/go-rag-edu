@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"strconv"
 
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
@@ -11,7 +11,7 @@ import (
 	"rag-api/pkg/config"
 	"rag-api/pkg/database"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
@@ -34,34 +34,28 @@ func main() {
 	// initialize handler
 	authHandler := handler.NewAuthHandler(authUsecase)
 
-	// initialize router
-	r := gin.Default()
+	// initialize fiber app
+	app := fiber.New()
 
-	// Public Router
-	api := r.Group("/api")
-	{
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-	}
+	// Public Routes
+	api := app.Group("/api")
+	api.Post("/auth/register", authHandler.Register)
+	api.Post("/auth/login", authHandler.Login)
 
-	// Protected Router
-	protected := api.Group("")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		protected.GET("/auth/me", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"userID": c.GetString("userID"),
-				"email":  c.GetString("email"),
-				"role":   c.GetString("role"),
-				"major":  c.GetString("major"),
-			})
+	// Protected Routes
+	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
+	protected.Get("/auth/me", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"userID": c.Locals("userID"),
+			"email":  c.Locals("email"),
+			"role":   c.Locals("role"),
+			"major":  c.Locals("major"),
 		})
-	}
+	})
 
 	// Start server
 	log.Printf("🚀 Server starting on port %d", cfg.Port)
-	if err := r.Run(":" + strconv.Itoa(cfg.Port)); err != nil {
+	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
-
 }

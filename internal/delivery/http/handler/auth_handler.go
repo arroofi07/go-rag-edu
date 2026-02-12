@@ -1,12 +1,11 @@
 package handler
 
 import (
-	"net/http"
 	"rag-api/internal/delivery/http/dto"
 	"rag-api/internal/domain/entity"
 	"rag-api/internal/usecase/auth"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type AuthHandler struct {
@@ -18,15 +17,14 @@ func NewAuthHandler(authUsecase *auth.AuthUsecase) *AuthHandler {
 }
 
 // handler register start
-func (h *AuthHandler) Register(c *gin.Context) {
+func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	user, err := h.authUsecase.Register(
-		c.Request.Context(),
+		c.Context(),
 		req.Email,
 		req.Password,
 		req.Name,
@@ -35,11 +33,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User registered successfully", "user": dto.UserInfo{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User registered successfully", "user": dto.UserInfo{
 		ID:    user.ID,
 		Email: user.Email,
 		Name:  user.Name,
@@ -50,26 +47,24 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // handler register end
 
-// hanler login start
-func (h *AuthHandler) Login(c *gin.Context) {
+// handler login start
+func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	token, user, err := h.authUsecase.Login(
-		c.Request.Context(),
+		c.Context(),
 		req.Email,
 		req.Password,
 	)
 
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User logged in successfully", "token": token, "user": dto.UserInfo{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User logged in successfully", "token": token, "user": dto.UserInfo{
 		ID:    user.ID,
 		Email: user.Email,
 		Name:  user.Name,
@@ -78,4 +73,4 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}})
 }
 
-// hanler login end
+// handler login end
