@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 
+	_ "rag-api/docs"
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
 	"rag-api/internal/delivery/http/middleware"
 	"rag-api/internal/usecase/auth"
+	"rag-api/internal/usecase/document"
 	"rag-api/pkg/config"
-	"rag-api/pkg/database" 
-	_ "rag-api/docs"
+	"rag-api/pkg/database"
+
 	"github.com/gofiber/fiber/v2"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
@@ -37,12 +39,15 @@ func main() {
 
 	// initialize repository
 	userRepo := postgres.NewUserRepository(db)
+	docRepo := postgres.NewDocumentRepository(db)
 
 	// initialize usecase
 	authUsecase := auth.NewAuthUsecase(userRepo, cfg.JWTSecret, cfg.JWTExpiration)
+	docUsecase := document.NewDocumentUsecase(docRepo)
 
 	// initialize handler
 	authHandler := handler.NewAuthHandler(authUsecase)
+	docHandler := handler.NewDocumentHandler(docUsecase)
 
 	// initialize fiber app
 	app := fiber.New()
@@ -59,6 +64,15 @@ func main() {
 	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
 	protected.Get("/auth/me", authHandler.Me)
 
+	// document routes
+	protected.Post("/documents/upload", docHandler.Upload)
+	protected.Get("/documents", docHandler.List)
+	protected.Get("/documents/:id", docHandler.GetByID)
+	protected.Delete("/documents/:id", docHandler.Delete)
+
+	//
+	//
+	//
 	// Start server
 	log.Printf("🚀 Server starting on port %d", cfg.Port)
 	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)

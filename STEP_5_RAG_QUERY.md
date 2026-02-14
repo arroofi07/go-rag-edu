@@ -191,17 +191,27 @@ type ChunkSource struct {
 Tambahkan method Query:
 
 ```go
-func (h *DocumentHandler) Query(c *gin.Context) {
+// Query godoc
+// @Summary      Query documents with RAG
+// @Description  Search documents using natural language and get AI-generated answer
+// @Tags         Documents
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      dto.QueryDocumentRequest  true  "Query Request"
+// @Success      200      {object}  dto.QueryDocumentResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/documents/query [post]
+func (h *DocumentHandler) Query(c *fiber.Ctx) error {
 	var req dto.QueryDocumentRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	answer, chunks, err := h.docUsecase.QueryDocuments(c.Request.Context(), req.Query)
+	answer, chunks, err := h.docUsecase.QueryDocuments(c.Context(), req.Query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Convert chunks to sources
@@ -215,7 +225,7 @@ func (h *DocumentHandler) Query(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, dto.QueryDocumentResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.QueryDocumentResponse{
 		Query:   req.Query,
 		Answer:  answer,
 		Sources: sources,
@@ -265,36 +275,32 @@ func main() {
 	authHandler := handler.NewAuthHandler(authUsecase)
 	docHandler := handler.NewDocumentHandler(docUsecase)
 
-	// Setup router
-	r := gin.Default()
+	// Setup Fiber app
+	app := fiber.New()
 
-	api := r.Group("/api")
-	{
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-	}
+	// Swagger route
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	protected := api.Group("")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		protected.GET("/auth/me", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"userID": c.GetString("userID"),
-				"email":  c.GetString("email"),
-				"role":   c.GetString("role"),
-				"major":  c.GetString("major"),
-			})
-		})
+	// Public Routes
+	api := app.Group("/api")
+	api.Post("/auth/register", authHandler.Register)
+	api.Post("/auth/login", authHandler.Login)
 
-		protected.POST("/documents/upload", docHandler.Upload)
-		protected.GET("/documents", docHandler.List)
-		protected.GET("/documents/:id", docHandler.GetByID)
-		protected.DELETE("/documents/:id", docHandler.Delete)
-		protected.POST("/documents/query", docHandler.Query)  // TAMBAHKAN
-	}
+	// Protected Routes
+	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
+	protected.Get("/auth/me", authHandler.Me)
 
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Document routes
+	protected.Post("/documents/upload", docHandler.Upload)
+	protected.Get("/documents", docHandler.List)
+	protected.Get("/documents/:id", docHandler.GetByID)
+	protected.Delete("/documents/:id", docHandler.Delete)
+	protected.Post("/documents/query", docHandler.Query)  // TAMBAHKAN
+
+	// Start server
+	log.Printf("🚀 Server starting on port %d", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)
+	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -338,7 +344,7 @@ func (c *EmbeddingClient) GenerateEmbedding(ctx context.Context, text string) (p
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"student@test.com","password":"password123"}' \
-  | jq -r '.access_token')
+  | jq -r '.token')
 
 # Query documents
 curl -X POST http://localhost:8080/api/documents/query \
@@ -396,8 +402,8 @@ curl -X POST http://localhost:8080/api/documents/query \
 - [ ] OpenAI chat client created
 - [ ] QueryDocuments method implemented
 - [ ] Query DTO created
-- [ ] Query handler implemented
-- [ ] Route added to main.go
+- [ ] Query handler implemented (Fiber + Swagger annotations)
+- [ ] Route added to main.go (Fiber)
 - [ ] Query berhasil return answer (status 200)
 - [ ] Sources/chunks ditampilkan dengan similarity score
 - [ ] Answer relevan dengan query

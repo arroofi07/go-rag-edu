@@ -20,13 +20,13 @@ type Config struct {
 	DatabaseURL   string
 	JWTSecret     string
 	JWTExpiration time.Duration
-	Port          string
-	
+	Port          int
+
 	// OpenAI - TAMBAHKAN INI
 	OpenAIKey            string
 	OpenAIEmbeddingModel string
 	OpenAIChatModel      string
-	
+
 	// RAG Config - TAMBAHKAN INI
 	ChunkSize           int
 	ChunkOverlap        int
@@ -42,17 +42,22 @@ func Load() *Config {
 	godotenv.Load()
 	jwtExp, _ := time.ParseDuration(getEnv("JWT_EXPIRATION", "168h"))
 
+	port, err := strconv.Atoi(getEnv("PORT", "8080"))
+	if err != nil {
+		port = 8080
+	}
+
 	return &Config{
 		DatabaseURL:   getEnv("DATABASE_URL", ""),
-		JWTSecret:     getEnv("JWT_SECRET", "secret"),
+		JWTSecret:     getEnv("JWT_SECRET", ""),
 		JWTExpiration: jwtExp,
-		Port:          getEnv("PORT", "8080"),
-		
+		Port:          port,
+
 		// OpenAI
 		OpenAIKey:            getEnv("OPENAI_API_KEY", ""),
 		OpenAIEmbeddingModel: getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
 		OpenAIChatModel:      getEnv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
-		
+
 		// RAG Config
 		ChunkSize:           getEnvInt("CHUNK_SIZE", 1000),
 		ChunkOverlap:        getEnvInt("CHUNK_OVERLAP", 200),
@@ -232,9 +237,9 @@ func (r *documentRepository) List(ctx context.Context, userID string, page, limi
 	// Get documents
 	var docs []entity.Document
 	query := `
-		SELECT * FROM documents 
-		WHERE user_id = $1 
-		ORDER BY created_at DESC 
+		SELECT * FROM documents
+		WHERE user_id = $1
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 	err := r.db.SelectContext(ctx, &docs, query, userID, limit, offset)
@@ -406,10 +411,9 @@ package handler
 
 import (
 	"io"
-	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"rag-api/internal/delivery/http/dto"
 	"rag-api/internal/domain/entity"
 	"rag-api/internal/usecase/document"
@@ -423,39 +427,49 @@ func NewDocumentHandler(docUsecase *document.DocumentUsecase) *DocumentHandler {
 	return &DocumentHandler{docUsecase: docUsecase}
 }
 
-func (h *DocumentHandler) Upload(c *gin.Context) {
-	userID := c.GetString("userID")
+// Upload godoc
+// @Summary      Upload a document
+// @Description  Upload a PDF or image file for processing
+// @Tags         Documents
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        file        formData  file    true  "File to upload"
+// @Param        visibility  formData  string  false "Visibility (PUBLIC or PRIVATE)" default(PRIVATE)
+// @Success      201  {object}  dto.UploadDocumentResponse
+// @Failure      400  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/documents/upload [post]
+func (h *DocumentHandler) Upload(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
 
 	// Get file from form
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
-		return
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "File is required"})
 	}
 
 	// Get visibility (default: PRIVATE)
 	visibility := entity.VisibilityPrivate
-	if c.PostForm("visibility") == "PUBLIC" {
+	if c.FormValue("visibility") == "PUBLIC" {
 		visibility = entity.VisibilityPublic
 	}
 
 	// Read file data
 	fileData, err := file.Open()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file"})
 	}
 	defer fileData.Close()
 
 	buf, err := io.ReadAll(fileData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to read file"})
 	}
 
 	// Upload document
 	doc, err := h.docUsecase.UploadDocument(
-		c.Request.Context(),
+		c.Context(),
 		userID,
 		file.Filename,
 		buf,
@@ -463,11 +477,10 @@ func (h *DocumentHandler) Upload(c *gin.Context) {
 		visibility,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.JSON(http.StatusCreated, dto.UploadDocumentResponse{
+	return c.Status(fiber.StatusCreated).JSON(dto.UploadDocumentResponse{
 		ID:       doc.ID,
 		Filename: doc.Filename,
 		Status:   string(doc.Status),
@@ -475,16 +488,26 @@ func (h *DocumentHandler) Upload(c *gin.Context) {
 	})
 }
 
-func (h *DocumentHandler) List(c *gin.Context) {
-	userID := c.GetString("userID")
+// List godoc
+// @Summary      List documents
+// @Description  Get a list of documents for the authenticated user
+// @Tags         Documents
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page   query  int  false  "Page number" default(1)
+// @Param        limit  query  int  false  "Items per page" default(10)
+// @Success      200  {object}  dto.ListDocumentsResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/documents [get]
+func (h *DocumentHandler) List(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 
-	docs, total, err := h.docUsecase.ListDocuments(c.Request.Context(), userID, page, limit)
+	docs, total, err := h.docUsecase.ListDocuments(c.Context(), userID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	// Convert to DTO
@@ -505,7 +528,7 @@ func (h *DocumentHandler) List(c *gin.Context) {
 
 	totalPages := (total + limit - 1) / limit
 
-	c.JSON(http.StatusOK, dto.ListDocumentsResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.ListDocumentsResponse{
 		Data: docInfos,
 		Meta: dto.PaginationMeta{
 			Total:      total,
@@ -516,21 +539,30 @@ func (h *DocumentHandler) List(c *gin.Context) {
 	})
 }
 
-func (h *DocumentHandler) GetByID(c *gin.Context) {
-	userID := c.GetString("userID")
-	documentID := c.Param("id")
+// GetByID godoc
+// @Summary      Get document by ID
+// @Description  Get a single document's details
+// @Tags         Documents
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Document ID"
+// @Success      200  {object}  dto.DocumentInfo
+// @Failure      404  {object}  dto.ErrorResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/documents/{id} [get]
+func (h *DocumentHandler) GetByID(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	documentID := c.Params("id")
 
-	doc, err := h.docUsecase.GetDocument(c.Request.Context(), documentID, userID)
+	doc, err := h.docUsecase.GetDocument(c.Context(), documentID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	if doc == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-		return
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Document not found"})
 	}
 
-	c.JSON(http.StatusOK, dto.DocumentInfo{
+	return c.Status(fiber.StatusOK).JSON(dto.DocumentInfo{
 		ID:           doc.ID,
 		Filename:     doc.Filename,
 		OriginalName: doc.OriginalName,
@@ -543,16 +575,25 @@ func (h *DocumentHandler) GetByID(c *gin.Context) {
 	})
 }
 
-func (h *DocumentHandler) Delete(c *gin.Context) {
-	userID := c.GetString("userID")
-	documentID := c.Param("id")
+// Delete godoc
+// @Summary      Delete a document
+// @Description  Delete a document by ID
+// @Tags         Documents
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Document ID"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/documents/{id} [delete]
+func (h *DocumentHandler) Delete(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	documentID := c.Params("id")
 
-	if err := h.docUsecase.DeleteDocument(c.Request.Context(), documentID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if err := h.docUsecase.DeleteDocument(c.Context(), documentID, userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Document deleted successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Document deleted successfully"})
 }
 ```
 
@@ -564,9 +605,9 @@ func (h *DocumentHandler) Delete(c *gin.Context) {
 package main
 
 import (
+	"fmt"
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
 	"rag-api/internal/delivery/http/middleware"
@@ -574,8 +615,20 @@ import (
 	"rag-api/internal/usecase/document"  // TAMBAHKAN
 	"rag-api/pkg/config"
 	"rag-api/pkg/database"
+	_ "rag-api/docs"
+	"github.com/gofiber/fiber/v2"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
+// @title           RAG API
+// @version         1.0
+// @description     API documentation for the RAG (Retrieval-Augmented Generation) service
+// @host            localhost:8080
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	cfg := config.Load()
 
@@ -584,7 +637,6 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
-
 	log.Println("✅ Connected to database")
 
 	// Initialize repositories
@@ -599,38 +651,31 @@ func main() {
 	authHandler := handler.NewAuthHandler(authUsecase)
 	docHandler := handler.NewDocumentHandler(docUsecase)  // TAMBAHKAN
 
-	// Setup router
-	r := gin.Default()
+	// Setup Fiber app
+	app := fiber.New()
 
-	api := r.Group("/api")
-	{
-		// Public routes
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-	}
+	// Swagger route
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	// Protected routes
-	protected := api.Group("")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		protected.GET("/auth/me", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"userID": c.GetString("userID"),
-				"email":  c.GetString("email"),
-				"role":   c.GetString("role"),
-				"major":  c.GetString("major"),
-			})
-		})
+	// Public Routes
+	api := app.Group("/api")
+	api.Post("/auth/register", authHandler.Register)
+	api.Post("/auth/login", authHandler.Login)
 
-		// Document routes - TAMBAHKAN
-		protected.POST("/documents/upload", docHandler.Upload)
-		protected.GET("/documents", docHandler.List)
-		protected.GET("/documents/:id", docHandler.GetByID)
-		protected.DELETE("/documents/:id", docHandler.Delete)
-	}
+	// Protected Routes
+	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
+	protected.Get("/auth/me", authHandler.Me)
 
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Document routes - TAMBAHKAN
+	protected.Post("/documents/upload", docHandler.Upload)
+	protected.Get("/documents", docHandler.List)
+	protected.Get("/documents/:id", docHandler.GetByID)
+	protected.Delete("/documents/:id", docHandler.Delete)
+
+	// Start server
+	log.Printf("🚀 Server starting on port %d", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)
+	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -644,7 +689,7 @@ func main() {
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"student@test.com","password":"password123"}' \
-  | jq -r '.access_token')
+  | jq -r '.token')
 
 # Upload file
 curl -X POST http://localhost:8080/api/documents/upload \
@@ -686,8 +731,8 @@ curl -X DELETE http://localhost:8080/api/documents/{DOCUMENT_ID} \
 - [ ] Config updated dengan OpenAI settings
 - [ ] Document entity & repository created
 - [ ] Document usecase implemented
-- [ ] Document handler created
-- [ ] Routes added to main.go
+- [ ] Document handler created (Fiber + Swagger annotations)
+- [ ] Routes added to main.go (Fiber)
 - [ ] Upload document berhasil (status 201)
 - [ ] List documents berhasil (status 200)
 - [ ] Get document by ID berhasil (status 200)

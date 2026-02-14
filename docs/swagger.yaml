@@ -1,10 +1,40 @@
 basePath: /
 definitions:
+  dto.DocumentInfo:
+    properties:
+      createdAt:
+        type: string
+      fileSize:
+        type: integer
+      filename:
+        type: string
+      id:
+        type: string
+      mimeType:
+        type: string
+      originalName:
+        type: string
+      status:
+        type: string
+      totalChunks:
+        type: integer
+      visibility:
+        type: string
+    type: object
   dto.ErrorResponse:
     properties:
       error:
         example: Something went wrong
         type: string
+    type: object
+  dto.ListDocumentsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.DocumentInfo'
+        type: array
+      meta:
+        $ref: '#/definitions/dto.PaginationMeta'
     type: object
   dto.LoginRequest:
     properties:
@@ -44,6 +74,23 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
+  dto.MessageResponse:
+    properties:
+      message:
+        example: Operation successful
+        type: string
+    type: object
+  dto.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
   dto.RegisterRequest:
     properties:
       email:
@@ -77,6 +124,17 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.UploadDocumentResponse:
+    properties:
+      filename:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      status:
+        type: string
     type: object
   dto.UserInfo:
     properties:
@@ -189,6 +247,125 @@ paths:
       summary: Register a new user
       tags:
       - Auth
+  /api/documents:
+    get:
+      description: Get a list of documents for the authenticated user
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ListDocumentsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List documents
+      tags:
+      - Documents
+  /api/documents/{id}:
+    delete:
+      description: Delete a document by ID
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a document
+      tags:
+      - Documents
+    get:
+      description: Get a single document's details
+      parameters:
+      - description: Document ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.DocumentInfo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get document by ID
+      tags:
+      - Documents
+  /api/documents/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a PDF or image file for processing
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - default: PRIVATE
+        description: Visibility (PUBLIC or PRIVATE)
+        in: formData
+        name: visibility
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UploadDocumentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload a document
+      tags:
+      - Documents
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

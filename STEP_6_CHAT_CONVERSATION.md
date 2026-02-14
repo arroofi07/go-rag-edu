@@ -116,9 +116,9 @@ func (r *conversationRepository) List(ctx context.Context, userID string, page, 
 
 	var convs []entity.Conversation
 	query := `
-		SELECT * FROM conversations 
-		WHERE user_id = $1 
-		ORDER BY updated_at DESC 
+		SELECT * FROM conversations
+		WHERE user_id = $1
+		ORDER BY updated_at DESC
 		LIMIT $2 OFFSET $3
 	`
 	err := r.db.SelectContext(ctx, &convs, query, userID, limit, offset)
@@ -194,8 +194,8 @@ func (r *messageRepository) Create(ctx context.Context, msg *entity.Message) err
 func (r *messageRepository) ListByConversation(ctx context.Context, conversationID string, limit int) ([]entity.Message, error) {
 	var messages []entity.Message
 	query := `
-		SELECT * FROM messages 
-		WHERE conversation_id = $1 
+		SELECT * FROM messages
+		WHERE conversation_id = $1
 		ORDER BY created_at ASC
 		LIMIT $2
 	`
@@ -582,10 +582,9 @@ package handler
 
 import (
 	"encoding/json"
-	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 	"rag-api/internal/delivery/http/dto"
 	"rag-api/internal/usecase/chat"
 )
@@ -598,19 +597,29 @@ func NewChatHandler(chatUsecase *chat.ChatUsecase) *ChatHandler {
 	return &ChatHandler{chatUsecase: chatUsecase}
 }
 
-func (h *ChatHandler) CreateConversation(c *gin.Context) {
-	userID := c.GetString("userID")
+// CreateConversation godoc
+// @Summary      Create a new conversation
+// @Description  Start a new chat conversation with an initial message
+// @Tags         Chat
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      dto.CreateConversationRequest  true  "Create Conversation Request"
+// @Success      201      {object}  dto.ChatResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/chat/conversations [post]
+func (h *ChatHandler) CreateConversation(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
 
 	var req dto.CreateConversationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	conv, userMsg, assistantMsg, err := h.chatUsecase.CreateConversation(c.Request.Context(), userID, req.Message)
+	conv, userMsg, assistantMsg, err := h.chatUsecase.CreateConversation(c.Context(), userID, req.Message)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var sources []map[string]interface{}
@@ -618,7 +627,7 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 		json.Unmarshal(assistantMsg.Sources, &sources)
 	}
 
-	c.JSON(http.StatusCreated, dto.ChatResponse{
+	return c.Status(fiber.StatusCreated).JSON(dto.ChatResponse{
 		ConversationID: conv.ID,
 		UserMessage: dto.MessageResponse{
 			ID:      userMsg.ID,
@@ -634,20 +643,31 @@ func (h *ChatHandler) CreateConversation(c *gin.Context) {
 	})
 }
 
-func (h *ChatHandler) SendMessage(c *gin.Context) {
-	userID := c.GetString("userID")
-	conversationID := c.Param("id")
+// SendMessage godoc
+// @Summary      Send a message in a conversation
+// @Description  Send a message and get an AI response in an existing conversation
+// @Tags         Chat
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id       path      string                  true  "Conversation ID"
+// @Param        request  body      dto.SendMessageRequest  true  "Send Message Request"
+// @Success      200      {object}  dto.ChatResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/chat/conversations/{id}/messages [post]
+func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	conversationID := c.Params("id")
 
 	var req dto.SendMessageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userMsg, assistantMsg, err := h.chatUsecase.SendMessage(c.Request.Context(), conversationID, userID, req.Message)
+	userMsg, assistantMsg, err := h.chatUsecase.SendMessage(c.Context(), conversationID, userID, req.Message)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var sources []map[string]interface{}
@@ -655,7 +675,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		json.Unmarshal(assistantMsg.Sources, &sources)
 	}
 
-	c.JSON(http.StatusOK, dto.ChatResponse{
+	return c.Status(fiber.StatusOK).JSON(dto.ChatResponse{
 		ConversationID: conversationID,
 		UserMessage: dto.MessageResponse{
 			ID:      userMsg.ID,
@@ -671,16 +691,26 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 	})
 }
 
-func (h *ChatHandler) ListConversations(c *gin.Context) {
-	userID := c.GetString("userID")
+// ListConversations godoc
+// @Summary      List conversations
+// @Description  Get a list of conversations for the authenticated user
+// @Tags         Chat
+// @Produce      json
+// @Security     BearerAuth
+// @Param        page   query  int  false  "Page number" default(1)
+// @Param        limit  query  int  false  "Items per page" default(10)
+// @Success      200  {object}  map[string]interface{}
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/chat/conversations [get]
+func (h *ChatHandler) ListConversations(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
 
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 
-	convs, total, err := h.chatUsecase.ListConversations(c.Request.Context(), userID, page, limit)
+	convs, total, err := h.chatUsecase.ListConversations(c.Context(), userID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var convInfos []dto.ConversationInfo
@@ -693,9 +723,9 @@ func (h *ChatHandler) ListConversations(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"data": convInfos,
-		"meta": gin.H{
+		"meta": fiber.Map{
 			"total": total,
 			"page":  page,
 			"limit": limit,
@@ -703,14 +733,23 @@ func (h *ChatHandler) ListConversations(c *gin.Context) {
 	})
 }
 
-func (h *ChatHandler) GetConversation(c *gin.Context) {
-	userID := c.GetString("userID")
-	conversationID := c.Param("id")
+// GetConversation godoc
+// @Summary      Get conversation detail
+// @Description  Get a conversation with all its messages
+// @Tags         Chat
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Conversation ID"
+// @Success      200  {object}  dto.ConversationDetail
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/chat/conversations/{id} [get]
+func (h *ChatHandler) GetConversation(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	conversationID := c.Params("id")
 
-	conv, messages, err := h.chatUsecase.GetConversation(c.Request.Context(), conversationID, userID)
+	conv, messages, err := h.chatUsecase.GetConversation(c.Context(), conversationID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	var msgResponses []dto.MessageResponse
@@ -728,7 +767,7 @@ func (h *ChatHandler) GetConversation(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, dto.ConversationDetail{
+	return c.Status(fiber.StatusOK).JSON(dto.ConversationDetail{
 		Conversation: dto.ConversationInfo{
 			ID:        conv.ID,
 			Title:     conv.Title,
@@ -739,16 +778,25 @@ func (h *ChatHandler) GetConversation(c *gin.Context) {
 	})
 }
 
-func (h *ChatHandler) DeleteConversation(c *gin.Context) {
-	userID := c.GetString("userID")
-	conversationID := c.Param("id")
+// DeleteConversation godoc
+// @Summary      Delete a conversation
+// @Description  Delete a conversation and all its messages
+// @Tags         Chat
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id  path  string  true  "Conversation ID"
+// @Success      200  {object}  dto.MessageResponse
+// @Failure      500  {object}  dto.ErrorResponse
+// @Router       /api/chat/conversations/{id} [delete]
+func (h *ChatHandler) DeleteConversation(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string)
+	conversationID := c.Params("id")
 
-	if err := h.chatUsecase.DeleteConversation(c.Request.Context(), conversationID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	if err := h.chatUsecase.DeleteConversation(c.Context(), conversationID, userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Conversation deleted successfully"})
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Conversation deleted successfully"})
 }
 ```
 
@@ -760,9 +808,9 @@ func (h *ChatHandler) DeleteConversation(c *gin.Context) {
 package main
 
 import (
+	"fmt"
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"rag-api/internal/adapter/openai"
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
@@ -772,8 +820,20 @@ import (
 	"rag-api/internal/usecase/document"
 	"rag-api/pkg/config"
 	"rag-api/pkg/database"
+	_ "rag-api/docs"
+	"github.com/gofiber/fiber/v2"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
+// @title           RAG API
+// @version         1.0
+// @description     API documentation for the RAG (Retrieval-Augmented Generation) service
+// @host            localhost:8080
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	cfg := config.Load()
 
@@ -823,47 +883,41 @@ func main() {
 	docHandler := handler.NewDocumentHandler(docUsecase)
 	chatHandler := handler.NewChatHandler(chatUsecase)
 
-	// Setup router
-	r := gin.Default()
+	// Setup Fiber app
+	app := fiber.New()
 
-	api := r.Group("/api")
-	{
-		// Public routes
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-	}
+	// Swagger route
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	// Protected routes
-	protected := api.Group("")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		// Auth
-		protected.GET("/auth/me", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"userID": c.GetString("userID"),
-				"email":  c.GetString("email"),
-				"role":   c.GetString("role"),
-				"major":  c.GetString("major"),
-			})
-		})
+	// Public Routes
+	api := app.Group("/api")
+	api.Post("/auth/register", authHandler.Register)
+	api.Post("/auth/login", authHandler.Login)
 
-		// Documents
-		protected.POST("/documents/upload", docHandler.Upload)
-		protected.GET("/documents", docHandler.List)
-		protected.GET("/documents/:id", docHandler.GetByID)
-		protected.DELETE("/documents/:id", docHandler.Delete)
-		protected.POST("/documents/query", docHandler.Query)
+	// Protected Routes
+	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
 
-		// Chat
-		protected.POST("/chat/conversations", chatHandler.CreateConversation)
-		protected.POST("/chat/conversations/:id/messages", chatHandler.SendMessage)
-		protected.GET("/chat/conversations", chatHandler.ListConversations)
-		protected.GET("/chat/conversations/:id", chatHandler.GetConversation)
-		protected.DELETE("/chat/conversations/:id", chatHandler.DeleteConversation)
-	}
+	// Auth
+	protected.Get("/auth/me", authHandler.Me)
 
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Documents
+	protected.Post("/documents/upload", docHandler.Upload)
+	protected.Get("/documents", docHandler.List)
+	protected.Get("/documents/:id", docHandler.GetByID)
+	protected.Delete("/documents/:id", docHandler.Delete)
+	protected.Post("/documents/query", docHandler.Query)
+
+	// Chat
+	protected.Post("/chat/conversations", chatHandler.CreateConversation)
+	protected.Post("/chat/conversations/:id/messages", chatHandler.SendMessage)
+	protected.Get("/chat/conversations", chatHandler.ListConversations)
+	protected.Get("/chat/conversations/:id", chatHandler.GetConversation)
+	protected.Delete("/chat/conversations/:id", chatHandler.DeleteConversation)
+
+	// Start server
+	log.Printf("🚀 Server starting on port %d", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)
+	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -935,8 +989,8 @@ curl -X DELETE http://localhost:8080/api/chat/conversations/conv-123 \
 
 - [ ] Conversation & message repositories created
 - [ ] Chat usecase implemented dengan history support
-- [ ] Chat DTO & handler created
-- [ ] Routes added to main.go
+- [ ] Chat DTO & handler created (Fiber + Swagger annotations)
+- [ ] Routes added to main.go (Fiber)
 - [ ] Create conversation berhasil (status 201)
 - [ ] Send message berhasil (status 200)
 - [ ] List conversations berhasil (status 200)
@@ -956,6 +1010,14 @@ Anda sekarang memiliki sistem RAG lengkap dengan:
 - ✅ Document Processing (text extraction, chunking, embedding)
 - ✅ RAG Query (similarity search + AI answer)
 - ✅ Chat Conversation (conversational RAG dengan history)
+
+### Tech Stack
+- **Framework**: Go Fiber v2
+- **Database**: PostgreSQL (pgx driver) + pgvector
+- **ORM**: sqlx
+- **Auth**: JWT (golang-jwt)
+- **API Docs**: Swagger (swaggo/fiber-swagger)
+- **AI**: OpenAI (embeddings + chat completions)
 
 ### API Endpoints Lengkap
 
@@ -977,6 +1039,9 @@ Anda sekarang memiliki sistem RAG lengkap dengan:
 - `GET /api/chat/conversations`
 - `GET /api/chat/conversations/:id`
 - `DELETE /api/chat/conversations/:id`
+
+**Docs**
+- `GET /swagger/*` - Swagger UI
 
 ### Next Steps (Optional Improvements)
 

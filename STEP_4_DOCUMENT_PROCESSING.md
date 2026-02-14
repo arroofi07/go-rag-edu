@@ -614,9 +614,9 @@ func (uc *DocumentUsecase) DeleteDocument(
 package main
 
 import (
+	"fmt"
 	"log"
 
-	"github.com/gin-gonic/gin"
 	"rag-api/internal/adapter/openai"
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
@@ -625,8 +625,20 @@ import (
 	"rag-api/internal/usecase/document"
 	"rag-api/pkg/config"
 	"rag-api/pkg/database"
+	_ "rag-api/docs"
+	"github.com/gofiber/fiber/v2"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
 
+// @title           RAG API
+// @version         1.0
+// @description     API documentation for the RAG (Retrieval-Augmented Generation) service
+// @host            localhost:8080
+// @BasePath        /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	cfg := config.Load()
 
@@ -660,35 +672,31 @@ func main() {
 	authHandler := handler.NewAuthHandler(authUsecase)
 	docHandler := handler.NewDocumentHandler(docUsecase)
 
-	// Setup router
-	r := gin.Default()
+	// Setup Fiber app
+	app := fiber.New()
 
-	api := r.Group("/api")
-	{
-		api.POST("/auth/register", authHandler.Register)
-		api.POST("/auth/login", authHandler.Login)
-	}
+	// Swagger route
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	protected := api.Group("")
-	protected.Use(middleware.JWTAuth(cfg.JWTSecret))
-	{
-		protected.GET("/auth/me", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"userID": c.GetString("userID"),
-				"email":  c.GetString("email"),
-				"role":   c.GetString("role"),
-				"major":  c.GetString("major"),
-			})
-		})
+	// Public Routes
+	api := app.Group("/api")
+	api.Post("/auth/register", authHandler.Register)
+	api.Post("/auth/login", authHandler.Login)
 
-		protected.POST("/documents/upload", docHandler.Upload)
-		protected.GET("/documents", docHandler.List)
-		protected.GET("/documents/:id", docHandler.GetByID)
-		protected.DELETE("/documents/:id", docHandler.Delete)
-	}
+	// Protected Routes
+	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
+	protected.Get("/auth/me", authHandler.Me)
 
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	if err := r.Run(":" + cfg.Port); err != nil {
+	// Document routes
+	protected.Post("/documents/upload", docHandler.Upload)
+	protected.Get("/documents", docHandler.List)
+	protected.Get("/documents/:id", docHandler.GetByID)
+	protected.Delete("/documents/:id", docHandler.Delete)
+
+	// Start server
+	log.Printf("🚀 Server starting on port %d", cfg.Port)
+	log.Printf("📚 Swagger UI: http://localhost:%d/swagger/index.html", cfg.Port)
+	if err := app.Listen(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -733,10 +741,10 @@ curl -X GET http://localhost:8080/api/documents/abc-123 \
 SELECT COUNT(*) FROM document_chunks WHERE document_id = 'abc-123';
 
 -- Check embeddings
-SELECT chunk_index, LEFT(content, 50) as preview 
-FROM document_chunks 
-WHERE document_id = 'abc-123' 
-ORDER BY chunk_index 
+SELECT chunk_index, LEFT(content, 50) as preview
+FROM document_chunks
+WHERE document_id = 'abc-123'
+ORDER BY chunk_index
 LIMIT 5;
 ```
 
