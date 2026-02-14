@@ -90,3 +90,33 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Role:  string(user.Role),
 	}})
 }
+
+// Get User
+// @Summary      Get user info
+// @Description  Get user info
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200      {object}  dto.MeResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/auth/me [get]
+func (h *AuthHandler) Me(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid user session"})
+	}
+
+	user, err := h.authUsecase.GetUserInfo(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"user": dto.UserInfo{
+		ID:    user.ID,
+		Email: user.Email,
+		Name:  user.Name,
+		Major: user.Major,
+		Role:  string(user.Role),
+	}})
+}

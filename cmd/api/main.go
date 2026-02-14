@@ -9,10 +9,8 @@ import (
 	"rag-api/internal/delivery/http/middleware"
 	"rag-api/internal/usecase/auth"
 	"rag-api/pkg/config"
-	"rag-api/pkg/database"
-
+	"rag-api/pkg/database" 
 	_ "rag-api/docs"
-
 	"github.com/gofiber/fiber/v2"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 )
@@ -25,7 +23,7 @@ import (
 // @securityDefinitions.apikey BearerAuth
 // @in header
 // @name Authorization
-// @description Enter your bearer token in the format: Bearer {token}
+// @description Type "Bearer" followed by a space and JWT token.
 func main() {
 	cfg := config.Load()
 
@@ -59,14 +57,7 @@ func main() {
 
 	// Protected Routes
 	protected := api.Group("", middleware.JWTAuth(cfg.JWTSecret))
-	protected.Get("/auth/me", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"userID": c.Locals("userID"),
-			"email":  c.Locals("email"),
-			"role":   c.Locals("role"),
-			"major":  c.Locals("major"),
-		})
-	})
+	protected.Get("/auth/me", authHandler.Me)
 
 	// Start server
 	log.Printf("🚀 Server starting on port %d", cfg.Port)

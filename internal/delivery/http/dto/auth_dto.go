@@ -2,17 +2,17 @@ package dto
 
 // tipe data untuk request register
 type RegisterRequest struct {
-	Email    string `json:"email" example:"user@example.com"`
-	Password string `json:"password" example:"password123"`
-	Name     string `json:"name" example:"John Doe"`
-	Major    string `json:"major" example:"Computer Science"`
+	Email    string `json:"email" binding:"required" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"password123"`
+	Name     string `json:"name" binding:"required" example:"John Doe"`
+	Major    string `json:"major"  example:"Computer Science"`
 	Role     string `json:"role" example:"STUDENT" enums:"STUDENT,TEACHER,ADMIN"`
 }
 
 // tipe data untuk request login
 type LoginRequest struct {
-	Email    string `json:"email" example:"user@example.com"`
-	Password string `json:"password" example:"password123"`
+	Email    string `json:"email" binding:"required" example:"user@example.com"`
+	Password string `json:"password" binding:"required" example:"password123"`
 }
 
 // tipe data untuk response login

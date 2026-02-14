@@ -14,6 +14,9 @@ definitions:
       password:
         example: password123
         type: string
+    required:
+    - email
+    - password
     type: object
   dto.LoginSuccessResponse:
     properties:
@@ -25,6 +28,21 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/dto.UserInfo'
+    type: object
+  dto.MeResponse:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      major:
+        example: Computer Science
+        type: string
+      role:
+        example: STUDENT
+        type: string
+      userID:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
     type: object
   dto.RegisterRequest:
     properties:
@@ -47,6 +65,10 @@ definitions:
         - ADMIN
         example: STUDENT
         type: string
+    required:
+    - email
+    - name
+    - password
     type: object
   dto.RegisterSuccessResponse:
     properties:
@@ -111,6 +133,31 @@ paths:
       summary: Login user
       tags:
       - Auth
+  /api/auth/me:
+    get:
+      consumes:
+      - application/json
+      description: Get user info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user info
+      tags:
+      - Auth
   /api/auth/register:
     post:
       consumes:
@@ -144,7 +191,7 @@ paths:
       - Auth
 securityDefinitions:
   BearerAuth:
-    description: 'Enter your bearer token in the format: Bearer {token}'
+    description: Type "Bearer" followed by a space and JWT token.
     in: header
     name: Authorization
     type: apiKey

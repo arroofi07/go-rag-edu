@@ -118,3 +118,11 @@ func (uc *AuthUsecase) Login(
 	return token, user, nil
 
 }
+
+// get user
+func (uc *AuthUsecase) GetUserInfo(
+	ctx context.Context,
+	userID string,
+) (*entity.User, error) {
+	return uc.userRepo.FindById(ctx, userID)
+}
