@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG System - Activity Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 2px solid #533483;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #e94560, #533483, #0f3460);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #8892b0;
+            font-size: 1rem;
+        }
+
+        .nav {
+            background: #1a1a2e;
+            border-bottom: 1px solid #2a2a4a;
+            padding: 0 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .nav a {
+            display: inline-block;
+            padding: 14px 18px;
+            color: #8892b0;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav a:hover, .nav a.active {
+            color: #e94560;
+            border-bottom-color: #e94560;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+            background: #1a1a2e;
+            border-radius: 16px;
+            border: 1px solid #2a2a4a;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 24px 30px;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-header .icon {
+            font-size: 1.5rem;
+        }
+
+        .section-header h2 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .section-header p {
+            font-size: 0.85rem;
+            color: #8892b0;
+            margin-left: auto;
+        }
+
+        .diagram-box {
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+
+        .diagram-box .mermaid {
+            min-width: 300px;
+        }
+
+        .table-box {
+            padding: 20px 30px 30px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: #16213e;
+            color: #e94560;
+            padding: 12px 14px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #533483;
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #2a2a4a;
+            color: #c0c0d0;
+        }
+
+        tr:hover td {
+            background: #16213e;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-student { background: #1565C0; color: white; }
+        .badge-teacher { background: #2E7D32; color: white; }
+        .badge-admin { background: #E65100; color: white; }
+        .badge-yes { background: #2E7D32; color: white; }
+        .badge-no { background: #b71c1c; color: white; }
+
+        .role-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .role-card {
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid;
+        }
+
+        .role-card.student {
+            background: linear-gradient(135deg, #0d1b3e, #1a237e22);
+            border-color: #1565C0;
+        }
+
+        .role-card.teacher {
+            background: linear-gradient(135deg, #0d2e1b, #1b5e2022);
+            border-color: #2E7D32;
+        }
+
+        .role-card.admin {
+            background: linear-gradient(135deg, #2e1a0d, #e6510022);
+            border-color: #E65100;
+        }
+
+        .role-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .role-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .role-card li {
+            padding: 6px 0;
+            font-size: 0.9rem;
+            color: #c0c0d0;
+        }
+
+        .role-card li::before {
+            content: "→ ";
+            color: #8892b0;
+        }
+
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #533483, transparent);
+            margin: 10px 0 30px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📊 RAG Education System — Diagrams</h1>
+    <p>Activity Diagrams & Frontend Pages per Role</p>
+</div>
+
+<div class="nav">
+    <a href="#er-diagram">ER Diagram</a>
+    <a href="#login">Login</a>
+    <a href="#register">Register</a>
+    <a href="#upload">Upload Doc</a>
+    <a href="#list-docs">List Docs</a>
+    <a href="#rag-query">RAG Query</a>
+    <a href="#chat-create">Create Chat</a>
+    <a href="#chat-send">Send Message</a>
+    <a href="#chat-manage">Manage Chat</a>
+    <a href="#sitemap">Sitemap</a>
+    <a href="#pages-student">Student</a>
+    <a href="#pages-admin">Admin</a>
+    <a href="#sidebar">Sidebar</a>
+    <a href="#route-guard">Route Guard</a>
+</div>
+
+<div class="container">
+
+    <!-- ==================== API ENDPOINTS ==================== -->
+    <div class="section" id="endpoints">
+        <div class="section-header">
+            <span class="icon">📋</span>
+            <h2>API Endpoints Summary</h2>
+            <p>17 endpoints total</p>
+        </div>
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr><th>Module</th><th>Method</th><th>Endpoint</th><th>Auth</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Auth</td><td>POST</td><td><code>/api/auth/login</code></td><td>❌ Public</td><td>Login user</td></tr>
+                    <tr><td>Users</td><td>POST</td><td><code>/api/users</code></td><td><span class="badge badge-admin">ADMIN</span></td><td>Create user (register)</td></tr>
+                    <tr><td>Users</td><td>GET</td><td><code>/api/users/me</code></td><td>🔒 JWT</td><td>Get current profile</td></tr>
+                    <tr><td>Users</td><td>GET</td><td><code>/api/users/:id</code></td><td>🔒 JWT</td><td>Get user by ID</td></tr>
+                    <tr><td>Users</td><td>PATCH</td><td><code>/api/users/:id</code></td><td>🔒 JWT</td><td>Update user data</td></tr>
+                    <tr><td>Docs</td><td>POST</td><td><code>/api/documents/upload</code></td><td>🔒 JWT</td><td>Upload document</td></tr>
+                    <tr><td>Docs</td><td>GET</td><td><code>/api/documents</code></td><td>🔒 JWT</td><td>List documents</td></tr>
+                    <tr><td>Docs</td><td>GET</td><td><code>/api/documents/:id</code></td><td>🔒 JWT</td><td>Document detail</td></tr>
+                    <tr><td>Docs</td><td>PATCH</td><td><code>/api/documents/:id/visibility</code></td><td>🔒 JWT</td><td>Update visibility</td></tr>
+                    <tr><td>Docs</td><td>DELETE</td><td><code>/api/documents/:id</code></td><td>🔒 JWT</td><td>Delete document</td></tr>
+                    <tr><td>Docs</td><td>POST</td><td><code>/api/documents/query</code></td><td>🔒 JWT</td><td>RAG query</td></tr>
+                    <tr><td>Chat</td><td>POST</td><td><code>/api/chat/conversations</code></td><td>🔒 JWT</td><td>Create conversation</td></tr>
+                    <tr><td>Chat</td><td>POST</td><td><code>/api/chat/conversations/:id/messages</code></td><td>🔒 JWT</td><td>Send message</td></tr>
+                    <tr><td>Chat</td><td>GET</td><td><code>/api/chat/conversations</code></td><td>🔒 JWT</td><td>List conversations</td></tr>
+                    <tr><td>Chat</td><td>GET</td><td><code>/api/chat/conversations/:id</code></td><td>🔒 JWT</td><td>Get conversation detail</td></tr>
+                    <tr><td>Chat</td><td>PATCH</td><td><code>/api/chat/conversations/:id</code></td><td>🔒 JWT</td><td>Update title</td></tr>
+                    <tr><td>Chat</td><td>DELETE</td><td><code>/api/chat/conversations/:id</code></td><td>🔒 JWT</td><td>Delete conversation</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== ER DIAGRAM ==================== -->
+    <div class="section" id="er-diagram">
+        <div class="section-header">
+            <span class="icon">🗂️</span>
+            <h2>Database ER Diagram</h2>
+            <p>5 models</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+erDiagram
+    User ||--o{ Document : uploads
+    User ||--o{ Conversation : creates
+    Document ||--o{ DocumentChunk : has
+    Conversation ||--o{ Message : contains
+
+    User {
+        uuid id PK
+        string email UK
+        string password
+        string name
+        string major
+        enum role "STUDENT TEACHER ADMIN"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Document {
+        uuid id PK
+        uuid userId FK
+        string filename
+        string originalName
+        int fileSize
+        string mimeType
+        enum status "PROCESSING COMPLETED FAILED"
+        int totalChunks
+        enum visibility "PUBLIC PRIVATE"
+    }
+
+    DocumentChunk {
+        uuid id PK
+        uuid documentId FK
+        int chunkIndex
+        text content
+        vector embedding "1536 dims"
+        json metadata
+    }
+
+    Conversation {
+        uuid id PK
+        uuid userId FK
+        string title
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    Message {
+        uuid id PK
+        uuid conversationId FK
+        enum role "USER ASSISTANT"
+        text content
+        json sources
+        json metadata
+    }
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== LOGIN FLOW ==================== -->
+    <div class="section" id="login">
+        <div class="section-header">
+            <span class="icon">🔐</span>
+            <h2>Login Flow</h2>
+            <p>POST /api/auth/login</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User membuka Login"]) --> InputForm["Isi email & password"]
+    InputForm --> Validate{"Validasi input?"}
+
+    Validate -->|"Email kosong/invalid"| ShowErr1["Tampilkan error validasi"]
+    ShowErr1 --> InputForm
+    Validate -->|"Password kurang dari 6"| ShowErr2["Tampilkan error password"]
+    ShowErr2 --> InputForm
+
+    Validate -->|Valid| SendAPI["POST /api/auth/login"]
+
+    SendAPI --> CheckCreds{"Backend: Cek credentials"}
+    CheckCreds -->|"User tidak ditemukan"| Err401["401 Unauthorized"]
+    CheckCreds -->|"Password salah"| Err401
+    Err401 --> ShowLoginErr["Tampilkan pesan error"]
+    ShowLoginErr --> InputForm
+
+    CheckCreds -->|Valid| GenToken["Generate JWT Token"]
+    GenToken --> Response["200 OK: access_token + user data"]
+
+    Response --> SaveToken["Simpan token di localStorage"]
+    SaveToken --> Redirect["Redirect ke Dashboard"]
+
+    style Start fill:#4CAF50,color:white
+    style Redirect fill:#2196F3,color:white
+    style Err401 fill:#f44336,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== REGISTER ==================== -->
+    <div class="section" id="register">
+        <div class="section-header">
+            <span class="icon">📝</span>
+            <h2>Register / Create User (Admin Only)</h2>
+            <p>POST /api/users</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["Admin buka Create User"]) --> CheckRole{"Role = ADMIN?"}
+    CheckRole -->|"Bukan Admin"| Forbidden["403 Forbidden"]
+    Forbidden --> EndForbid(["Redirect ke Dashboard"])
+
+    CheckRole -->|Admin| InputForm["Isi: email, password, name, major, role"]
+
+    InputForm --> Validate{"Validasi input?"}
+    Validate -->|Invalid| ShowErr["Tampilkan error"]
+    ShowErr --> InputForm
+
+    Validate -->|Valid| SendAPI["POST /api/users + Bearer token"]
+
+    SendAPI --> CheckEmail{"Backend: Email exists?"}
+    CheckEmail -->|Ya| Err409["409 Conflict: Email already exists"]
+    Err409 --> ShowConflict["Tampilkan error duplikat"]
+    ShowConflict --> InputForm
+
+    CheckEmail -->|Tidak| HashPwd["Hash password bcrypt"]
+    HashPwd --> CreateUser["Simpan user ke database"]
+    CreateUser --> Response["201 Created: user data"]
+    Response --> ShowSuccess["Tampilkan sukses"]
+
+    style Start fill:#4CAF50,color:white
+    style ShowSuccess fill:#2196F3,color:white
+    style Err409 fill:#f44336,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== UPLOAD DOCUMENT ==================== -->
+    <div class="section" id="upload">
+        <div class="section-header">
+            <span class="icon">⬆️</span>
+            <h2>Upload Document Flow</h2>
+            <p>POST /api/documents/upload</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User buka Upload Page"]) --> SelectFile["Pilih file: PDF / PNG / JPG"]
+    SelectFile --> ValidateFile{"File valid?"}
+    ValidateFile -->|"File kosong"| ErrNoFile["Error: file required"]
+    ErrNoFile --> SelectFile
+    ValidateFile -->|"Format salah"| ErrFormat["Error: format tidak didukung"]
+    ErrFormat --> SelectFile
+
+    ValidateFile -->|Valid| SetVis["Pilih visibility: PUBLIC / PRIVATE"]
+    SetVis --> SendAPI["POST /api/documents/upload<br/>multipart/form-data"]
+
+    SendAPI --> CreateRecord["Backend: Buat record dokumen<br/>status = PROCESSING"]
+    CreateRecord --> ReturnImmediate["Response: id, status PROCESSING"]
+    ReturnImmediate --> ShowUploading["Tampilkan status: Processing..."]
+
+    CreateRecord --> BgProcess["Background:<br/>1. Extract text PDF/OCR<br/>2. Split jadi chunks<br/>3. Generate embedding<br/>4. Simpan chunks"]
+
+    BgProcess --> BgCheck{"Berhasil?"}
+    BgCheck -->|Ya| UpdateComplete["Status = COMPLETED"]
+    BgCheck -->|Gagal| UpdateFailed["Status = FAILED"]
+
+    ShowUploading --> PollStatus["Polling: GET /api/documents/:id"]
+    PollStatus --> CheckStatus{"Status?"}
+    CheckStatus -->|PROCESSING| PollStatus
+    CheckStatus -->|COMPLETED| ShowComplete["Document ready!"]
+    CheckStatus -->|FAILED| ShowFailed["Processing failed"]
+
+    style Start fill:#4CAF50,color:white
+    style ShowComplete fill:#2196F3,color:white
+    style ShowFailed fill:#f44336,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== LIST DOCS ==================== -->
+    <div class="section" id="list-docs">
+        <div class="section-header">
+            <span class="icon">📄</span>
+            <h2>List Documents Flow</h2>
+            <p>GET /api/documents</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User buka Documents"]) --> SendAPI["GET /api/documents?page=1&limit=10"]
+
+    SendAPI --> CheckRole{"Backend: Role user?"}
+    CheckRole -->|ADMIN| AdminView["Lihat SEMUA dokumen"]
+    CheckRole -->|"STUDENT/TEACHER"| UserView["Lihat: milik sendiri + PUBLIC se-major"]
+
+    AdminView --> QueryDB["Query database + pagination"]
+    UserView --> QueryDB
+
+    QueryDB --> Response["200 OK: data + meta pagination"]
+    Response --> RenderList["Render daftar dokumen"]
+
+    RenderList --> UserAction{"User action?"}
+    UserAction -->|"Klik dokumen"| ViewDetail["GET /api/documents/:id"]
+    UserAction -->|"Ubah halaman"| ChangePage["Update page"]
+    ChangePage --> SendAPI
+    UserAction -->|"Filter status"| ChangeFilter["Update filter"]
+    ChangeFilter --> SendAPI
+
+    style Start fill:#4CAF50,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== RAG QUERY ==================== -->
+    <div class="section" id="rag-query">
+        <div class="section-header">
+            <span class="icon">🔍</span>
+            <h2>RAG Query Flow</h2>
+            <p>POST /api/documents/query</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User buka Query Page"]) --> InputQuery["Ketik pertanyaan"]
+    InputQuery --> SendAPI["POST /api/documents/query"]
+
+    SendAPI --> CheckGreeting{"Backend: Greeting?"}
+    CheckGreeting -->|Ya| GreetingResp["Return greeting tanpa RAG"]
+    GreetingResp --> DisplayAnswer
+
+    CheckGreeting -->|Bukan| GenEmbed["Generate query embedding<br/>OpenAI text-embedding-3-small"]
+    GenEmbed --> SearchDB["Vector similarity search"]
+
+    SearchDB --> AccessFilter{"Filter by role"}
+    AccessFilter -->|ADMIN| AllDocs["Cari di SEMUA dokumen"]
+    AccessFilter -->|"STUDENT/TEACHER"| FilteredDocs["Cari di: milik sendiri + PUBLIC se-major"]
+
+    AllDocs --> CheckResults
+    FilteredDocs --> CheckResults
+
+    CheckResults{"Hasil relevan? similarity >= 0.5"}
+    CheckResults -->|"Tidak ada"| NoResult["Tidak menemukan info relevan"]
+    NoResult --> DisplayAnswer
+
+    CheckResults -->|Ada| BuildContext["Context dari top-6 chunks"]
+    BuildContext --> CallAI["OpenAI GPT-4o-mini generate jawaban"]
+    CallAI --> FormatSources["Format sources: docName, similarity, preview"]
+
+    FormatSources --> DisplayAnswer["Tampilkan jawaban AI + sumber"]
+    DisplayAnswer --> NextAction{"Selanjutnya?"}
+    NextAction -->|"Tanya lagi"| InputQuery
+    NextAction -->|"Lihat sumber"| ViewSource["Buka document detail"]
+    NextAction -->|"Mulai chat"| StartChat["Buat conversation baru"]
+
+    style Start fill:#4CAF50,color:white
+    style DisplayAnswer fill:#2196F3,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== CREATE CHAT ==================== -->
+    <div class="section" id="chat-create">
+        <div class="section-header">
+            <span class="icon">💬</span>
+            <h2>Create Conversation Flow</h2>
+            <p>POST /api/chat/conversations</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User buka Chat"]) --> InputMsg["Ketik pesan pertama"]
+    InputMsg --> OptTitle["Title opsional"]
+    OptTitle --> SendAPI["POST /api/chat/conversations"]
+
+    SendAPI --> CreateConv["Buat conversation record"]
+    CreateConv --> StoreUser["Simpan pesan user"]
+    StoreUser --> CheckGreet{"Greeting?"}
+
+    CheckGreet -->|Ya| GreetResp["Response greeting tanpa RAG"]
+    CheckGreet -->|Bukan| RAGSearch["RAG: embedding + similarity search"]
+    RAGSearch --> GenAI["Generate jawaban AI + context"]
+
+    GreetResp --> StoreAssist["Simpan response assistant + sources"]
+    GenAI --> StoreAssist
+
+    StoreAssist --> Response["201: conversationId, userMsg, assistantMsg"]
+    Response --> DisplayChat["Tampilkan chat UI"]
+
+    style Start fill:#4CAF50,color:white
+    style DisplayChat fill:#2196F3,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== SEND MESSAGE ==================== -->
+    <div class="section" id="chat-send">
+        <div class="section-header">
+            <span class="icon">📨</span>
+            <h2>Send Message Flow</h2>
+            <p>POST /api/chat/conversations/:id/messages</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User ketik pesan"]) --> SendAPI["POST /api/chat/conversations/:id/messages"]
+
+    SendAPI --> CheckConv{"Conversation ada & milik user?"}
+    CheckConv -->|Tidak| Err404["404 Not Found"]
+
+    CheckConv -->|Ya| GetHistory["Ambil 10 pesan terakhir"]
+    GetHistory --> StoreUser["Simpan pesan user"]
+    StoreUser --> CheckGreet{"Greeting?"}
+
+    CheckGreet -->|Ya| GreetResp["Response greeting"]
+    CheckGreet -->|Bukan| RAGSearch["RAG Search + context"]
+    RAGSearch --> GenAI["Generate jawaban AI<br/>DENGAN history percakapan"]
+
+    GreetResp --> StoreAssist["Simpan response + sources"]
+    GenAI --> StoreAssist
+
+    StoreAssist --> UpdateTime["Update conversation.updatedAt"]
+    UpdateTime --> Response["200: userMsg + assistantMsg"]
+    Response --> AppendChat["Append pesan ke chat UI"]
+
+    style Start fill:#4CAF50,color:white
+    style AppendChat fill:#2196F3,color:white
+    style Err404 fill:#f44336,color:white
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== MANAGE CHAT ==================== -->
+    <div class="section" id="chat-manage">
+        <div class="section-header">
+            <span class="icon">📋</span>
+            <h2>List & Manage Conversations</h2>
+            <p>GET/PATCH/DELETE /api/chat/conversations</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Start(["User buka Chat List"]) --> LoadList["GET /api/chat/conversations?page=1&limit=20"]
+    LoadList --> Response["List: title, updatedAt, messageCount"]
+    Response --> RenderList["Render daftar percakapan"]
+
+    RenderList --> Action{"User action?"}
+    Action -->|"Klik conversation"| OpenChat["Load full chat history"]
+    Action -->|Rename| EditTitle["PATCH: update title"]
+    EditTitle --> RenderList
+    Action -->|Delete| ConfirmDel{"Konfirmasi?"}
+    ConfirmDel -->|Ya| DeleteConv["DELETE conversation + messages"]
+    DeleteConv --> RenderList
+    ConfirmDel -->|Tidak| RenderList
+    Action -->|"New chat"| NewChat["Buat conversation baru"]
+    Action -->|"Load more"| NextPage["Next page"]
+    NextPage --> LoadList
+
+    style Start fill:#4CAF50,color:white
+            </pre>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ==================== ROLE PAGES ==================== -->
+    <div class="section" id="sitemap">
+        <div class="section-header">
+            <span class="icon">🗺️</span>
+            <h2>Full Sitemap per Role</h2>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Landing(["Landing Page"]) --> Login["/auth/login"]
+    Login --> CheckRole{"Role user?"}
+
+    CheckRole -->|STUDENT| SD["Student Dashboard"]
+    CheckRole -->|TEACHER| TD2["Teacher Dashboard"]
+    CheckRole -->|ADMIN| AD["Admin Dashboard"]
+
+    subgraph StudentPages["STUDENT Pages"]
+        SD --> S1["/documents"]
+        SD --> S2["/documents/upload"]
+        SD --> S3["/query"]
+        SD --> S4["/chat"]
+        SD --> S5["/profile"]
+        S1 --> S1a["/documents/:id"]
+        S4 --> S4a["/chat/:id"]
+    end
+
+    subgraph TeacherPages["TEACHER Pages"]
+        TD2 --> T1["/documents"]
+        TD2 --> T2["/documents/upload"]
+        TD2 --> T3["/query"]
+        TD2 --> T4["/chat"]
+        TD2 --> T5["/profile"]
+        T1 --> T1a["/documents/:id"]
+        T4 --> T4a["/chat/:id"]
+    end
+
+    subgraph AdminPages["ADMIN Pages"]
+        AD --> A1["/documents (ALL)"]
+        AD --> A2["/documents/upload"]
+        AD --> A3["/query (ALL)"]
+        AD --> A4["/chat"]
+        AD --> A5["/profile"]
+        AD --> A6["/admin/users"]
+        AD --> A7["/admin/users/create"]
+        A1 --> A1a["/documents/:id"]
+        A4 --> A4a["/chat/:id"]
+        A6 --> A6a["/admin/users/:id"]
+    end
+
+    style StudentPages fill:#0d1b3e,stroke:#1565C0
+    style TeacherPages fill:#0d2e1b,stroke:#2E7D32
+    style AdminPages fill:#2e1a0d,stroke:#E65100
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== PAGE ACCESS MATRIX ==================== -->
+    <div class="section" id="access-matrix">
+        <div class="section-header">
+            <span class="icon">📊</span>
+            <h2>Page Access Matrix</h2>
+        </div>
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr><th>Page</th><th>Route</th><th><span class="badge badge-student">STUDENT</span></th><th><span class="badge badge-teacher">TEACHER</span></th><th><span class="badge badge-admin">ADMIN</span></th><th>Keterangan</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Login</td><td><code>/auth/login</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Public</td></tr>
+                    <tr><td>Dashboard</td><td><code>/dashboard</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Konten berbeda per role</td></tr>
+                    <tr><td>Documents</td><td><code>/documents</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Admin lihat semua</td></tr>
+                    <tr><td>Upload</td><td><code>/documents/upload</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Semua bisa upload</td></tr>
+                    <tr><td>Doc Detail</td><td><code>/documents/:id</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Akses tergantung visibility</td></tr>
+                    <tr><td>RAG Query</td><td><code>/query</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Scope search by akses</td></tr>
+                    <tr><td>Chat List</td><td><code>/chat</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Hanya milik sendiri</td></tr>
+                    <tr><td>Chat Room</td><td><code>/chat/:id</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Hanya milik sendiri</td></tr>
+                    <tr><td>Profile</td><td><code>/profile</code></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td><span class="badge badge-yes">✅</span></td><td>Admin bisa edit major</td></tr>
+                    <tr><td>User Mgmt</td><td><code>/admin/users</code></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td><td>Admin only</td></tr>
+                    <tr><td>Create User</td><td><code>/admin/users/create</code></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td><td>Admin only</td></tr>
+                    <tr><td>Edit User</td><td><code>/admin/users/:id</code></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td><td>Admin only</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== STUDENT PAGES ==================== -->
+    <div class="section" id="pages-student">
+        <div class="section-header">
+            <span class="icon">🎓</span>
+            <h2>STUDENT & TEACHER — Detail Halaman</h2>
+            <p>7 halaman, identik untuk kedua role</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Login(["Login"]) --> Dashboard
+
+    subgraph Dashboard["Dashboard"]
+        DStats["Stats: jumlah dokumen & query"]
+        DRecent["Recent documents saya"]
+        DQuick["Quick query shortcut"]
+    end
+
+    Dashboard --> Docs
+    subgraph Docs["My Documents"]
+        DocList["Dokumen saya + PUBLIC se-major"]
+        DocFilter["Filter: status, pagination"]
+        DocUpload["Tombol: Upload"]
+    end
+
+    DocList --> DocDetail
+    subgraph DocDetail["Document Detail"]
+        DocInfo["Info: nama, ukuran, status"]
+        DocVis["Toggle visibility - milik sendiri saja"]
+        DocDel["Delete - milik sendiri saja"]
+    end
+
+    Dashboard --> Query
+    subgraph Query["RAG Query"]
+        QInput["Input pertanyaan"]
+        QResult["Jawaban AI + sources"]
+    end
+
+    Dashboard --> ChatSection
+    subgraph ChatSection["Chat"]
+        ChatList["Daftar percakapan"]
+        ChatRoom["Chat room + history"]
+        ChatManage["Rename / Delete"]
+    end
+
+    Dashboard --> Profile
+    subgraph Profile["Profile"]
+        PEdit["Edit: name, email, password"]
+        PNoMajor["Tidak bisa ubah major"]
+        PNoRole["Tidak bisa ubah role"]
+    end
+
+    style Dashboard fill:#1a2744
+    style Docs fill:#1a2744
+    style DocDetail fill:#1a2744
+    style Query fill:#1a2744
+    style ChatSection fill:#1a2744
+    style Profile fill:#1a2744
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== ADMIN PAGES ==================== -->
+    <div class="section" id="pages-admin">
+        <div class="section-header">
+            <span class="icon">🔧</span>
+            <h2>ADMIN — Detail Halaman</h2>
+            <p>10 halaman, termasuk 3 halaman eksklusif admin</p>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Login(["Login"]) --> Dashboard
+
+    subgraph Dashboard["Admin Dashboard"]
+        DStats["Stats: total users, docs, conversations"]
+        DRecent["Recent documents SEMUA user"]
+        DAdminLink["Link ke User Management"]
+    end
+
+    Dashboard --> Docs
+    subgraph Docs["All Documents"]
+        DocList["Daftar SEMUA dokumen"]
+        DocFilter["Filter: status, pagination"]
+    end
+
+    DocList --> DocDetail
+    subgraph DocDetail["Document Detail"]
+        DocInfo["Info + uploader info"]
+        DocVis["Toggle visibility SEMUA dokumen"]
+    end
+
+    Dashboard --> Query
+    subgraph Query["RAG Query"]
+        QResult["Search SEMUA dokumen"]
+    end
+
+    Dashboard --> ChatSection
+    subgraph ChatSection["Chat"]
+        ChatContent["Sama seperti Student/Teacher"]
+    end
+
+    Dashboard --> Profile
+    subgraph Profile["Profile"]
+        PEdit["Edit: name, email, password, major"]
+    end
+
+    Dashboard --> AdminUsers
+    subgraph AdminUsers["User Management - ADMIN ONLY"]
+        UList["List semua users"]
+        UCreate["Create user baru"]
+        UEdit["Edit: name, email, role, major"]
+    end
+
+    style Dashboard fill:#2e1a0d
+    style Docs fill:#2e1a0d
+    style DocDetail fill:#2e1a0d
+    style Query fill:#2e1a0d
+    style ChatSection fill:#2e1a0d
+    style Profile fill:#2e1a0d
+    style AdminUsers fill:#4a1a0a,stroke:#E65100,stroke-width:3px
+            </pre>
+        </div>
+    </div>
+
+    <!-- ==================== SIDEBAR NAV ==================== -->
+    <div class="section" id="sidebar">
+        <div class="section-header">
+            <span class="icon">🧭</span>
+            <h2>Sidebar Navigation per Role</h2>
+        </div>
+        <div class="role-cards">
+            <div class="role-card student">
+                <h3><span class="badge badge-student">STUDENT</span> Sidebar</h3>
+                <ul>
+                    <li>📊 Dashboard</li>
+                    <li>📄 Documents</li>
+                    <li>⬆️ Upload</li>
+                    <li>🔍 RAG Query</li>
+                    <li>💬 Chat</li>
+                    <li>👤 Profile</li>
+                </ul>
+            </div>
+            <div class="role-card teacher">
+                <h3><span class="badge badge-teacher">TEACHER</span> Sidebar</h3>
+                <ul>
+                    <li>📊 Dashboard</li>
+                    <li>📄 Documents</li>
+                    <li>⬆️ Upload</li>
+                    <li>🔍 RAG Query</li>
+                    <li>💬 Chat</li>
+                    <li>👤 Profile</li>
+                </ul>
+            </div>
+            <div class="role-card admin">
+                <h3><span class="badge badge-admin">ADMIN</span> Sidebar</h3>
+                <ul>
+                    <li>📊 Dashboard</li>
+                    <li>📄 Documents</li>
+                    <li>⬆️ Upload</li>
+                    <li>🔍 RAG Query</li>
+                    <li>💬 Chat</li>
+                    <li>👤 Profile</li>
+                    <li style="border-top: 1px solid #E65100; padding-top: 10px; margin-top: 6px; color: #E65100; font-weight: 600;">🔴 User Management</li>
+                    <li style="color: #E65100; font-weight: 600;">🔴 Create User</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== KEY DIFFERENCES ==================== -->
+    <div class="section" id="differences">
+        <div class="section-header">
+            <span class="icon">⚡</span>
+            <h2>Perbedaan Kunci antar Role</h2>
+        </div>
+        <div class="table-box">
+            <table>
+                <thead>
+                    <tr><th>Aspek</th><th><span class="badge badge-student">STUDENT</span></th><th><span class="badge badge-teacher">TEACHER</span></th><th><span class="badge badge-admin">ADMIN</span></th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>Documents terlihat</td><td>Milik sendiri + PUBLIC se-major</td><td>Milik sendiri + PUBLIC se-major</td><td><strong>Semua dokumen</strong></td></tr>
+                    <tr><td>RAG Query scope</td><td>Dokumen yang bisa diakses</td><td>Dokumen yang bisa diakses</td><td><strong>Semua dokumen</strong></td></tr>
+                    <tr><td>Toggle visibility</td><td>Milik sendiri</td><td>Milik sendiri</td><td><strong>Semua dokumen</strong></td></tr>
+                    <tr><td>Delete document</td><td>Milik sendiri</td><td>Milik sendiri</td><td>Milik sendiri</td></tr>
+                    <tr><td>Edit profile - major</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+                    <tr><td>Edit profile - role</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+                    <tr><td>User management</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+                    <tr><td>Create new user</td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-no">❌</span></td><td><span class="badge badge-yes">✅</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== ROUTE GUARD ==================== -->
+    <div class="section" id="route-guard">
+        <div class="section-header">
+            <span class="icon">🔒</span>
+            <h2>Frontend Route Guard Logic</h2>
+        </div>
+        <div class="diagram-box">
+            <pre class="mermaid">
+flowchart TD
+    Request(["User akses route"]) --> HasToken{"Ada token?"}
+
+    HasToken -->|Tidak| IsPublic{"Route public?"}
+    IsPublic -->|"Ya: /auth/login"| AllowPublic["Tampilkan halaman"]
+    IsPublic -->|Bukan| RedirectLogin["Redirect ke /auth/login"]
+
+    HasToken -->|Ya| ValidateToken{"Token valid?"}
+    ValidateToken -->|Tidak| ClearToken["Hapus token"]
+    ClearToken --> RedirectLogin
+
+    ValidateToken -->|Ya| CheckRoute{"Route butuh role?"}
+    CheckRoute -->|"/admin/*"| IsAdmin{"Role = ADMIN?"}
+    IsAdmin -->|Ya| AllowAdmin["Tampilkan halaman admin"]
+    IsAdmin -->|Bukan| Redirect403["Redirect: Forbidden"]
+
+    CheckRoute -->|"Route umum"| AllowAll["Tampilkan halaman"]
+
+    style AllowPublic fill:#4CAF50,color:white
+    style AllowAdmin fill:#4CAF50,color:white
+    style AllowAll fill:#4CAF50,color:white
+    style RedirectLogin fill:#FF9800,color:white
+    style Redirect403 fill:#f44336,color:white
+            </pre>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1a1a2e',
+            primaryTextColor: '#e0e0e0',
+            primaryBorderColor: '#533483',
+            lineColor: '#8892b0',
+            secondaryColor: '#16213e',
+            tertiaryColor: '#0f3460',
+            fontSize: '14px'
+        },
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        }
+    });
+</script>
+
+</body>
+</html>
