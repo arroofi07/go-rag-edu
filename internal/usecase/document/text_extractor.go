@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/unidoc/unipdf/v3/extractor"
-	"github.com/unidoc/unipdf/v3/model"
+	"github.com/ledongthuc/pdf"
 )
 
 type TextExtractor struct{}
@@ -15,30 +14,22 @@ func NewTextExtractor() *TextExtractor {
 }
 
 func (te *TextExtractor) ExtractFromPDF(data []byte) (string, error) {
-	reader := bytes.NewReader(data)
-	pdfReader, err := model.NewPdfReader(reader)
+	reader, err := pdf.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return "", fmt.Errorf("failed to create PDF reader: %w", err)
 	}
 
-	numPages, err := pdfReader.GetNumPages()
-	if err != nil {
-		return "", fmt.Errorf("failed to get number of pages: %w", err)
-	}
-
 	var fullText string
+	// Get total pages
+	numPages := reader.NumPage()
+
 	for i := 1; i <= numPages; i++ {
-		page, err := pdfReader.GetPage(i)
-		if err != nil {
+		page := reader.Page(i)
+		if page.V.IsNull() {
 			continue
 		}
 
-		ex, err := extractor.New(page)
-		if err != nil {
-			continue
-		}
-
-		text, err := ex.ExtractText()
+		text, err := page.GetPlainText(nil)
 		if err != nil {
 			continue
 		}

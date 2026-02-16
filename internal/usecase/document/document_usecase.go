@@ -68,8 +68,16 @@ func (uc *DocumentUsecase) UploadDocument(
 
 	// process document in background
 	go func() {
+		// recovery for panic in background process
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic in document processing for doc %s: %v", doc.ID, r)
+				uc.docRepo.UpdateStatus(context.Background(), doc.ID, entity.StatusFailed)
+			}
+		}()
+
 		if err := uc.ProcessDocument(context.Background(), doc.ID, fileData, mimeType); err != nil {
-			log.Print("Error processing document %s: %v", doc.ID, err)
+			log.Printf("Error processing document %s: %v", doc.ID, err)
 			uc.docRepo.UpdateStatus(context.Background(), doc.ID, entity.StatusFailed)
 		}
 	}()
@@ -85,6 +93,8 @@ func (uc DocumentUsecase) ProcessDocument(
 	fileData []byte,
 	mimeType string,
 ) error {
+	log.Printf("Starting processing for document %s", documentID)
+
 	// 1 extract text
 	var text string
 	var err error
@@ -101,18 +111,21 @@ func (uc DocumentUsecase) ProcessDocument(
 	if len(text) == 0 {
 		return fmt.Errorf("no text extracted from document")
 	}
+	log.Printf("Extracted %d characters from document %s", len(text), documentID)
 
 	// 2 chunk text
 	textChunks := uc.chunker.ChunkText(text)
 	if len(textChunks) == 0 {
 		return fmt.Errorf("no chunks generated")
 	}
+	log.Printf("Generated %d chunks from document %s", len(textChunks), documentID)
 
 	// 3 generate embeddings
 	embeddings, err := uc.embedder.GenerateBatchEmbeddings(ctx, textChunks)
 	if err != nil {
 		return fmt.Errorf("failed to generate embeddings: %w", err)
 	}
+	log.Printf("Generated %d embeddings from document %s", len(embeddings), documentID)
 
 	// 4 create chunks with embeddings
 	var chunks []entity.DocumentChunk
@@ -134,6 +147,7 @@ func (uc DocumentUsecase) ProcessDocument(
 	if err := uc.chunkRepo.CreateBatch(ctx, chunks); err != nil {
 		return fmt.Errorf("failed to save chunks: %w", err)
 	}
+	log.Printf("Saved %d chunks to database for document %s", len(chunks), documentID)
 
 	// 6 update document status
 	if err := uc.docRepo.UpdateTotalChunks(ctx, documentID, len(chunks)); err != nil {

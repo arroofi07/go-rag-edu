@@ -1,79 +1,78 @@
+-- Drop existing tables if they exist (be careful with this in production!)
+DROP TABLE IF EXISTS "document_chunks" CASCADE;
+DROP TABLE IF EXISTS "documents" CASCADE;
+DROP TABLE IF EXISTS "users" CASCADE;
+
+-- Drop existing types if they exist
+DROP TYPE IF EXISTS "UserRole" CASCADE;
+DROP TYPE IF EXISTS "DocumentStatus" CASCADE;
+
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Create ENUMs
-CREATE TYPE user_role AS ENUM ('STUDENT', 'TEACHER', 'ADMIN');
-CREATE TYPE document_status AS ENUM ('PROCESSING', 'COMPLETED', 'FAILED');
-CREATE TYPE document_visibility AS ENUM ('PUBLIC', 'PRIVATE');
-CREATE TYPE message_role AS ENUM ('USER', 'ASSISTANT');
+-- Create UserRole enum
+CREATE TYPE "UserRole" AS ENUM ('STUDENT', 'TEACHER', 'ADMIN');
 
--- Users table
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    major VARCHAR(255) NOT NULL,
-    role user_role DEFAULT 'STUDENT',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+-- Create DocumentStatus enum
+CREATE TYPE "DocumentStatus" AS ENUM ('PROCESSING', 'COMPLETED', 'FAILED');
+
+-- Create DocumentVsibility enum
+CREATE TYPE "DocumentVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
+
+-- Create users table
+CREATE TABLE "users" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL DEFAULT 'STUDENT',
+    "major" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX idx_users_email ON users(email);
+-- Create documents table
+CREATE TABLE "documents" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "filename" TEXT NOT NULL,
+    "originalName" TEXT NOT NULL,
+    "fileSize" INTEGER NOT NULL,
+    "mimeType" TEXT NOT NULL,
+    "status" "DocumentStatus" NOT NULL DEFAULT 'PROCESSING',
+    "totalChunks" INTEGER NOT NULL DEFAULT 0,
+    "visibility" "DocumentVisibility"  NOT NULL DEFAULT 'PRIVATE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Documents table (untuk fitur selanjutnya)
-CREATE TABLE documents (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    filename VARCHAR(255) NOT NULL,
-    original_name VARCHAR(255) NOT NULL,
-    file_size BIGINT NOT NULL,
-    mime_type VARCHAR(100) NOT NULL,
-    status document_status DEFAULT 'PROCESSING',
-    total_chunks INT DEFAULT 0,
-    visibility document_visibility DEFAULT 'PRIVATE',
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    CONSTRAINT "documents_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX idx_documents_user_id ON documents(user_id);
-CREATE INDEX idx_documents_status ON documents(status);
+-- Create document_chunks table
+CREATE TABLE "document_chunks" (
+    "id" TEXT NOT NULL,
+    "documentId" TEXT NOT NULL,
+    "chunkIndex" INTEGER NOT NULL,
+    "content" TEXT NOT NULL,
+    "embedding" vector(1536),
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
--- Document chunks (untuk fitur selanjutnya)
-CREATE TABLE document_chunks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    chunk_index INT NOT NULL,
-    content TEXT NOT NULL,
-    embedding vector(1536),
-    metadata JSONB,
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(document_id, chunk_index)
+    CONSTRAINT "document_chunks_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX idx_chunks_document_id ON document_chunks(document_id);
-CREATE INDEX idx_chunks_embedding ON document_chunks USING hnsw (embedding vector_cosine_ops);
+-- Create unique indexes
+CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+CREATE UNIQUE INDEX "document_chunks_documentId_chunkIndex_key" ON "document_chunks"("documentId", "chunkIndex");
 
--- Conversations (untuk fitur chat)
-CREATE TABLE conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
+-- Create indexes
+CREATE INDEX "documents_userId_idx" ON "documents"("userId");
+CREATE INDEX "documents_status_idx" ON "documents"("status");
+CREATE INDEX "document_chunks_documentId_idx" ON "document_chunks"("documentId");
 
-CREATE INDEX idx_conversations_user_id ON conversations(user_id);
+-- Add foreign key constraints
+ALTER TABLE "documents" ADD CONSTRAINT "documents_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Messages (untuk fitur chat)
-CREATE TABLE messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    role message_role NOT NULL,
-    content TEXT NOT NULL,
-    sources JSONB,
-    metadata JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
+ALTER TABLE "document_chunks" ADD CONSTRAINT "document_chunks_documentId_fkey" FOREIGN KEY ("documentId") REFERENCES "documents"("id") ON DELETE CASCADE ON UPDATE CASCADE;

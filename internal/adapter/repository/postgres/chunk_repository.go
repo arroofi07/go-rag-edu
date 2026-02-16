@@ -26,7 +26,7 @@ func (r *chunkRepository) Create(ctx context.Context, chunk *entity.DocumentChun
 	chunk.CreatedAt = time.Now()
 
 	query := `
-		INSERT INTO document_chunks (id, documentId, chunkIndex, content, embedding, metadata, createdAt)
+		INSERT INTO "document_chunks" ("id", "documentId", "chunkIndex", "content", "embedding", "metadata", "createdAt")
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 	_, err := r.db.ExecContext(ctx, query,
@@ -50,8 +50,8 @@ func (r *chunkRepository) CreateBatch(ctx context.Context, chunks []entity.Docum
 	defer tx.Rollback()
 
 	query := `
-		INSERT INTO document_chunks (id, documentId, chunkIndex, content, embedding, metadata, createdAt)
-		VALUES (:id, :documentId, :chunkIndex, :content, :embedding, :metadata, :createdAt)
+		INSERT INTO "document_chunks" ("id", "documentId", "chunkIndex", "content", "embedding", "metadata", "createdAt")
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
 	for i := range chunks {
@@ -80,24 +80,24 @@ func (r *chunkRepository) CreateBatch(ctx context.Context, chunks []entity.Docum
 func (r *chunkRepository) SearchSimilar(ctx context.Context, embedding pgvector.Vector, topK int, threshold float64) ([]entity.SimilarChunk, error) {
 	query := `
 		SELECT 
-			dc.id,
-			dc.documentId,
-			dc.chunkIndex,
-			dc.content,
-			dc.metadata,
-			dc.createdAt,		
-		1 - (dc.embedding <=> $1) AS similarity
-		FROM document_chunks dc
-		INNER JOIN documents d ON dc.documentId = d.id
-		WHERE d.status = 'COMPLETED'
-		AND (1 - (dc.embedding <=> $1)) >= $2
-		ORDER BY dc.embedding <=> $1
+			dc."id",
+			dc."documentId",
+			dc."chunkIndex",
+			dc."content",
+			dc."metadata",
+			dc."createdAt",		
+		1 - (dc."embedding" <=> $1) AS similarity
+		FROM "document_chunks" dc
+		INNER JOIN "documents" d ON dc."documentId" = d."id"
+		WHERE d."status" = 'COMPLETED'
+		AND (1 - (dc."embedding" <=> $1)) >= $2
+		ORDER BY dc."embedding" <=> $1
 		LIMIT $3
 	`
-	
-	rows, err := r.db.QueryContext(ctx, query, embedding, threshold,  topK)
+
+	rows, err := r.db.QueryContext(ctx, query, embedding, threshold, topK)
 	if err != nil {
-		return nil, err 
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -105,13 +105,13 @@ func (r *chunkRepository) SearchSimilar(ctx context.Context, embedding pgvector.
 	for rows.Next() {
 		var chunk entity.SimilarChunk
 		err := rows.Scan(
-		&chunk.ID,
-		&chunk.DocumentID,
-		&chunk.ChunkIndex,
-		&chunk.Content,
-		&chunk.Metadata,
-		&chunk.CreatedAt,
-		&chunk.Similarity,
+			&chunk.ID,
+			&chunk.DocumentID,
+			&chunk.ChunkIndex,
+			&chunk.Content,
+			&chunk.Metadata,
+			&chunk.CreatedAt,
+			&chunk.Similarity,
 		)
 		if err != nil {
 			return nil, err
@@ -124,7 +124,7 @@ func (r *chunkRepository) SearchSimilar(ctx context.Context, embedding pgvector.
 
 // DeleteByDocumentID deletes all chunks containing the document ID
 func (r *chunkRepository) DeleteByDocumentID(ctx context.Context, documentID string) error {
-	query := `DELETE FROM document_chunks WHERE documentId = $1`
+	query := `DELETE FROM "document_chunks" WHERE "documentId" = $1`
 	_, err := r.db.ExecContext(ctx, query, documentID)
 	return err
 }

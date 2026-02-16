@@ -51,9 +51,17 @@ func (c *Chunker) ChunkText(text string) []string {
 		}
 
 		// move start position with overlap
-		start = end - c.chunkOverlap
-		if start < 0 {
-			start = 0
+		// move start position with overlap
+		newStart := end - c.chunkOverlap
+		if newStart <= start {
+			// ensure progress to avoid infinite loop
+			newStart = start + 1
+		}
+		start = newStart
+
+		// sanity check
+		if start >= len(text) {
+			break
 		}
 	}
 
