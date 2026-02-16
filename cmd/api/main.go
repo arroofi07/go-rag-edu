@@ -5,6 +5,7 @@ import (
 	"log"
 
 	_ "rag-api/docs"
+	"rag-api/internal/adapter/openai"
 	"rag-api/internal/adapter/repository/postgres"
 	"rag-api/internal/delivery/http/handler"
 	"rag-api/internal/delivery/http/middleware"
@@ -15,6 +16,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
+
+	// log
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 // @title           RAG API
@@ -37,13 +41,23 @@ func main() {
 	defer db.Close()
 	log.Println("connected to database")
 
+	// initialize openai client
+  embeddingClient := openai.NewEmbeddingClient(cfg.OpenAIKey, cfg.OpenAIEmbeddingModel)
+	
 	// initialize repository
 	userRepo := postgres.NewUserRepository(db)
 	docRepo := postgres.NewDocumentRepository(db)
+	chunkRepo := postgres.NewChunkRepository(db)
 
 	// initialize usecase
 	authUsecase := auth.NewAuthUsecase(userRepo, cfg.JWTSecret, cfg.JWTExpiration)
-	docUsecase := document.NewDocumentUsecase(docRepo)
+	docUsecase := document.NewDocumentUsecase(
+		docRepo,
+		chunkRepo,
+		embeddingClient,
+		cfg.ChunkSize,
+		cfg.ChunkOverlap,
+	)
 
 	// initialize handler
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -51,6 +65,9 @@ func main() {
 
 	// initialize fiber app
 	app := fiber.New()
+
+	// middleware for log request and response in terminal
+	app.Use(logger.New())
 
 	// Swagger route
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)

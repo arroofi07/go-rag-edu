@@ -8,7 +8,7 @@ dev:
 run:
 	go run cmd/api/main.go
 
-# Build binary
+# Build binary	
 build:
 	go build -o tmp/main.exe cmd/api/main.go
 

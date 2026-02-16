@@ -2,19 +2,42 @@ package document
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"rag-api/internal/domain/entity"
 	"rag-api/internal/domain/repository"
+
+	"github.com/pgvector/pgvector-go"
 )
 
-type DocumentUsecase struct {
-	docRepo repository.DocumentRepository
+type EmbeddingService interface {
+	GenerateBatchEmbeddings(ctx context.Context, texts []string) ([]pgvector.Vector, error)
 }
 
-func NewDocumentUsecase(docRepo repository.DocumentRepository) *DocumentUsecase {
-	return &DocumentUsecase{docRepo: docRepo}
+type DocumentUsecase struct {
+	docRepo   repository.DocumentRepository
+	chunkRepo repository.ChunkRepository
+	embedder  EmbeddingService
+	extractor *TextExtractor
+	chunker   *Chunker
+}
+
+func NewDocumentUsecase(
+	docRepo repository.DocumentRepository,
+	chunkRepo repository.ChunkRepository,
+	embedder EmbeddingService,
+	chunkSize, chunkOverlap int,
+) *DocumentUsecase {
+	return &DocumentUsecase{
+		docRepo:   docRepo,
+		chunkRepo: chunkRepo,
+		embedder:  embedder,
+		extractor: NewTextExtractor(),
+		chunker:   NewChunker(chunkSize, chunkOverlap),
+	}
 }
 
 // upload document
@@ -43,7 +66,86 @@ func (uc *DocumentUsecase) UploadDocument(
 		return nil, err
 	}
 
+	// process document in background
+	go func() {
+		if err := uc.ProcessDocument(context.Background(), doc.ID, fileData, mimeType); err != nil {
+			log.Print("Error processing document %s: %v", doc.ID, err)
+			uc.docRepo.UpdateStatus(context.Background(), doc.ID, entity.StatusFailed)
+		}
+	}()
+
 	return doc, nil
+
+}
+
+// process document
+func (uc DocumentUsecase) ProcessDocument(
+	ctx context.Context,
+	documentID string,
+	fileData []byte,
+	mimeType string,
+) error {
+	// 1 extract text
+	var text string
+	var err error
+
+	if mimeType == "application/pdf" {
+		text, err = uc.extractor.ExtractFromPDF(fileData)
+		if err != nil {
+			return fmt.Errorf("failed to extract text: %w", err)
+		}
+	} else {
+		return fmt.Errorf("unsupported file type: %s", mimeType)
+	}
+
+	if len(text) == 0 {
+		return fmt.Errorf("no text extracted from document")
+	}
+
+	// 2 chunk text
+	textChunks := uc.chunker.ChunkText(text)
+	if len(textChunks) == 0 {
+		return fmt.Errorf("no chunks generated")
+	}
+
+	// 3 generate embeddings
+	embeddings, err := uc.embedder.GenerateBatchEmbeddings(ctx, textChunks)
+	if err != nil {
+		return fmt.Errorf("failed to generate embeddings: %w", err)
+	}
+
+	// 4 create chunks with embeddings
+	var chunks []entity.DocumentChunk
+	for i, content := range textChunks {
+		metadata, _ := json.Marshal(entity.ChunkMetadata{
+			Source:     "text",
+			PageNumber: i/10 + 1,
+		})
+		chunks = append(chunks, entity.DocumentChunk{
+			DocumentID: documentID,
+			ChunkIndex: i,
+			Content:    content,
+			Embedding:  embeddings[i],
+			Metadata:   metadata,
+		})
+	}
+
+	// 5 save chunks
+	if err := uc.chunkRepo.CreateBatch(ctx, chunks); err != nil {
+		return fmt.Errorf("failed to save chunks: %w", err)
+	}
+
+	// 6 update document status
+	if err := uc.docRepo.UpdateTotalChunks(ctx, documentID, len(chunks)); err != nil {
+		return err
+	}
+
+	if err := uc.docRepo.UpdateStatus(ctx, documentID, entity.StatusCompleted); err != nil {
+		return err
+	}
+
+	log.Printf("Document %s processed successfully with %d chunks", documentID, len(chunks))
+	return nil
 
 }
 
@@ -86,6 +188,11 @@ func (uc *DocumentUsecase) DeleteDocument(
 	}
 	if doc == nil {
 		return fmt.Errorf("document not found")
+	}
+
+	// Delete chunks first
+	if err := uc.chunkRepo.DeleteByDocumentID(ctx, documentID); err != nil {
+		return err
 	}
 
 	return uc.docRepo.Delete(ctx, documentID)
