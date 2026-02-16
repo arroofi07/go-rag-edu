@@ -1,5 +1,16 @@
 basePath: /
 definitions:
+  dto.ChunkSource:
+    properties:
+      chunkIndex:
+        type: integer
+      content:
+        type: string
+      documentId:
+        type: string
+      similarity:
+        type: number
+    type: object
   dto.DocumentInfo:
     properties:
       createdAt:
@@ -90,6 +101,24 @@ definitions:
         type: integer
       totalPages:
         type: integer
+    type: object
+  dto.QueryDocumentRequest:
+    properties:
+      query:
+        type: string
+    required:
+    - query
+    type: object
+  dto.QueryDocumentResponse:
+    properties:
+      answer:
+        type: string
+      query:
+        type: string
+      sources:
+        items:
+          $ref: '#/definitions/dto.ChunkSource'
+        type: array
     type: object
   dto.RegisterRequest:
     properties:
@@ -328,6 +357,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Get document by ID
+      tags:
+      - Documents
+  /api/documents/query:
+    post:
+      consumes:
+      - application/json
+      description: Search documents using natural language and get AI-generated answer
+      parameters:
+      - description: Query Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.QueryDocumentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.QueryDocumentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Query documents with RAG
       tags:
       - Documents
   /api/documents/upload:

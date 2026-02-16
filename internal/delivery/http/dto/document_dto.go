@@ -33,3 +33,21 @@ type PaginationMeta struct {
 	Limit    int `json:"limit"`
 	TotalPages int `json:"totalPages"`
 }	
+
+
+type QueryDocumentRequest struct {
+	Query string `json:"query" binding:"required"`
+}
+
+type QueryDocumentResponse struct {
+	Query   string        `json:"query"`
+	Answer  string        `json:"answer"`
+	Sources []ChunkSource `json:"sources"`
+}
+
+type ChunkSource struct {
+	DocumentID string  `json:"documentId"`
+	Content    string  `json:"content"`
+	Similarity float64 `json:"similarity"`
+	ChunkIndex int     `json:"chunkIndex"`
+}

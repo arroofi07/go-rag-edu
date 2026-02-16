@@ -194,6 +194,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/documents/query": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Search documents using natural language and get AI-generated answer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Documents"
+                ],
+                "summary": "Query documents with RAG",
+                "parameters": [
+                    {
+                        "description": "Query Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.QueryDocumentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.QueryDocumentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/documents/upload": {
             "post": {
                 "security": [
@@ -336,6 +387,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "dto.ChunkSource": {
+            "type": "object",
+            "properties": {
+                "chunkIndex": {
+                    "type": "integer"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "documentId": {
+                    "type": "string"
+                },
+                "similarity": {
+                    "type": "number"
+                }
+            }
+        },
         "dto.DocumentInfo": {
             "type": "object",
             "properties": {
@@ -468,6 +536,34 @@ const docTemplate = `{
                 },
                 "totalPages": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.QueryDocumentRequest": {
+            "type": "object",
+            "required": [
+                "query"
+            ],
+            "properties": {
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.QueryDocumentResponse": {
+            "type": "object",
+            "properties": {
+                "answer": {
+                    "type": "string"
+                },
+                "query": {
+                    "type": "string"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ChunkSource"
+                    }
                 }
             }
         },

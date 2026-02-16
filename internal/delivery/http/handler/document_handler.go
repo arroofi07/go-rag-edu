@@ -187,3 +187,44 @@ func (h *DocumentHandler) Delete(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Document deleted successfully"})
 }
+
+// Query godoc
+// @Summary      Query documents with RAG
+// @Description  Search documents using natural language and get AI-generated answer
+// @Tags         Documents
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        request  body      dto.QueryDocumentRequest  true  "Query Request"
+// @Success      200      {object}  dto.QueryDocumentResponse
+// @Failure      400      {object}  dto.ErrorResponse
+// @Failure      500      {object}  dto.ErrorResponse
+// @Router       /api/documents/query [post]
+func (h *DocumentHandler) Query(c *fiber.Ctx) error {
+	var req dto.QueryDocumentRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	answer, chunks, err := h.docUsecase.QueryDocuments(c.Context(), req.Query)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Convert chunks to sources
+	var sources []dto.ChunkSource
+	for _, chunk := range chunks {
+		sources = append(sources, dto.ChunkSource{
+			DocumentID: chunk.DocumentID,
+			Content:    chunk.Content,
+			Similarity: chunk.Similarity,
+			ChunkIndex: chunk.ChunkIndex,
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(dto.QueryDocumentResponse{
+		Query:   req.Query,
+		Answer:  answer,
+		Sources: sources,
+	})
+}

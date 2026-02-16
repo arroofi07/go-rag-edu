@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"rag-api/internal/domain/entity"
@@ -13,30 +14,43 @@ import (
 	"github.com/pgvector/pgvector-go"
 )
 
+type ChatService interface {
+	GenerateAnswer(ctx context.Context, query, context string) (string, error)
+}
+
 type EmbeddingService interface {
 	GenerateBatchEmbeddings(ctx context.Context, texts []string) ([]pgvector.Vector, error)
 }
 
 type DocumentUsecase struct {
-	docRepo   repository.DocumentRepository
-	chunkRepo repository.ChunkRepository
-	embedder  EmbeddingService
-	extractor *TextExtractor
-	chunker   *Chunker
+	docRepo     repository.DocumentRepository
+	chunkRepo   repository.ChunkRepository
+	embedder    EmbeddingService
+	chatService ChatService
+	extractor   *TextExtractor
+	chunker     *Chunker
+	topK        int
+	threshold   float64
 }
 
 func NewDocumentUsecase(
 	docRepo repository.DocumentRepository,
 	chunkRepo repository.ChunkRepository,
 	embedder EmbeddingService,
+	chatService ChatService,
 	chunkSize, chunkOverlap int,
+	topK int,
+	threshold float64,
 ) *DocumentUsecase {
 	return &DocumentUsecase{
-		docRepo:   docRepo,
-		chunkRepo: chunkRepo,
-		embedder:  embedder,
-		extractor: NewTextExtractor(),
-		chunker:   NewChunker(chunkSize, chunkOverlap),
+		docRepo:     docRepo,
+		chunkRepo:   chunkRepo,
+		embedder:    embedder,
+		chatService: chatService,
+		extractor:   NewTextExtractor(),
+		chunker:     NewChunker(chunkSize, chunkOverlap),
+		topK:        topK,
+		threshold:   threshold,
 	}
 }
 
@@ -211,4 +225,44 @@ func (uc *DocumentUsecase) DeleteDocument(
 
 	return uc.docRepo.Delete(ctx, documentID)
 
+}
+
+// query document
+func (uc *DocumentUsecase) QueryDocuments(
+	ctx context.Context,
+	query string,
+) (string, []entity.SimilarChunk, error) {
+
+	// 1. generate embedding untuk query
+	queryEmbedding, err := uc.embedder.GenerateBatchEmbeddings(ctx, []string{query})
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to  generate query embedding: %w", err)
+	}
+
+	// 2. search similar chunks
+	if len(queryEmbedding) == 0 {
+		return "", nil, fmt.Errorf("no embedding generated for query")
+	}
+	chunks, err := uc.chunkRepo.SearchSimilar(ctx, queryEmbedding[0], uc.topK, uc.threshold)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to search similar chunks: %w", err)
+	}
+
+	if len(chunks) == 0 {
+		return "Maaf, saya tidak menemukan informasi yang relevan dalam dokumen", nil, nil
+	}
+
+	// 3. build context from chunks
+	var contextBuilder strings.Builder
+	for i, chunk := range chunks {
+		contextBuilder.WriteString(fmt.Sprintf("[Dokumen %d - Similarity: %.2f]\n%s\n\n", i+1, chunk.Similarity, chunk.Content))
+	}
+
+	// 4, generate answer using LLM
+	answer, err := uc.chatService.GenerateAnswer(ctx, query, contextBuilder.String())
+	if err != nil {
+		return "", chunks, fmt.Errorf("failed to generate answer: %w", err)
+	}
+
+	return answer, chunks, nil
 }

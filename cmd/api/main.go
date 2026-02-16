@@ -42,8 +42,9 @@ func main() {
 	log.Println("connected to database")
 
 	// initialize openai client
-  embeddingClient := openai.NewEmbeddingClient(cfg.OpenAIKey, cfg.OpenAIEmbeddingModel)
-	
+	embeddingClient := openai.NewEmbeddingClient(cfg.OpenAIKey, cfg.OpenAIEmbeddingModel)
+	chatClient := openai.NewChatClient(cfg.OpenAIKey, cfg.OpenAIChatModel)
+
 	// initialize repository
 	userRepo := postgres.NewUserRepository(db)
 	docRepo := postgres.NewDocumentRepository(db)
@@ -55,8 +56,11 @@ func main() {
 		docRepo,
 		chunkRepo,
 		embeddingClient,
+		chatClient,
 		cfg.ChunkSize,
 		cfg.ChunkOverlap,
+		cfg.TopKResults,
+		cfg.SimilarityThreshold,
 	)
 
 	// initialize handler
@@ -86,6 +90,7 @@ func main() {
 	protected.Get("/documents", docHandler.List)
 	protected.Get("/documents/:id", docHandler.GetByID)
 	protected.Delete("/documents/:id", docHandler.Delete)
+	protected.Post("/documents/query", docHandler.Query)
 
 	//
 	//
