@@ -53,7 +53,7 @@ func (c *ChatClient) GenerateAnswer(
 			},
 		},
 		Temperature: 0.7,
-		MaxTokens:   500,
+		MaxTokens:   700,
 	})
 
 	if err != nil {
